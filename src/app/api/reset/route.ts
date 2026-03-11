@@ -11,8 +11,8 @@ export function GET(request: Request) {
         title: "Market Indices",
         description: "",
         messages: [],
-        sandboxId: null,
-        previewUrl: null,
+        code: null, iframeVersion: 0,
+        
         layout: { i: "w-indices", x: 0, y: 0, w: 12, h: 2, minW: 2, minH: 2 },
       },
       {
@@ -20,8 +20,8 @@ export function GET(request: Request) {
         title: "Stock Watchlist",
         description: "",
         messages: [],
-        sandboxId: null,
-        previewUrl: null,
+        code: null, iframeVersion: 0,
+        
         layout: { i: "w-stocks", x: 0, y: 2, w: 6, h: 5, minW: 2, minH: 2 },
       },
       {
@@ -29,8 +29,8 @@ export function GET(request: Request) {
         title: "Market News",
         description: "",
         messages: [],
-        sandboxId: null,
-        previewUrl: null,
+        code: null, iframeVersion: 0,
+        
         layout: { i: "w-news", x: 6, y: 2, w: 6, h: 5, minW: 2, minH: 2 },
       },
       {
@@ -38,8 +38,8 @@ export function GET(request: Request) {
         title: "Commodities",
         description: "",
         messages: [],
-        sandboxId: null,
-        previewUrl: null,
+        code: null, iframeVersion: 0,
+        
         layout: { i: "w-commodities", x: 0, y: 7, w: 4, h: 4, minW: 2, minH: 2 },
       },
       {
@@ -47,8 +47,8 @@ export function GET(request: Request) {
         title: "Crypto Tracker",
         description: "",
         messages: [],
-        sandboxId: null,
-        previewUrl: null,
+        code: null, iframeVersion: 0,
+        
         layout: { i: "w-crypto", x: 4, y: 7, w: 4, h: 4, minW: 2, minH: 2 },
       },
       {
@@ -56,8 +56,8 @@ export function GET(request: Request) {
         title: "Portfolio P&L",
         description: "",
         messages: [],
-        sandboxId: null,
-        previewUrl: null,
+        code: null, iframeVersion: 0,
+        
         layout: { i: "w-portfolio", x: 8, y: 7, w: 4, h: 4, minW: 2, minH: 2 },
       },
     ];
@@ -77,8 +77,8 @@ export function GET(request: Request) {
         title: "World Event Map",
         description: "",
         messages: [],
-        sandboxId: null,
-        previewUrl: null,
+        code: null, iframeVersion: 0,
+        
         layout: { i: "w-map", x: 0, y: 0, w: 8, h: 6, minW: 3, minH: 4 },
       },
       {
@@ -86,8 +86,8 @@ export function GET(request: Request) {
         title: "Social Monitor",
         description: "",
         messages: [],
-        sandboxId: null,
-        previewUrl: null,
+        code: null, iframeVersion: 0,
+        
         layout: { i: "w-social", x: 8, y: 0, w: 4, h: 6, minW: 2, minH: 3 },
       },
       {
@@ -95,8 +95,8 @@ export function GET(request: Request) {
         title: "Intelligence Feeds",
         description: "",
         messages: [],
-        sandboxId: null,
-        previewUrl: null,
+        code: null, iframeVersion: 0,
+        
         layout: { i: "w-feeds", x: 0, y: 6, w: 6, h: 5, minW: 2, minH: 3 },
       },
       {
@@ -104,8 +104,8 @@ export function GET(request: Request) {
         title: "Live Broadcasts",
         description: "",
         messages: [],
-        sandboxId: null,
-        previewUrl: null,
+        code: null, iframeVersion: 0,
+        
         layout: { i: "w-youtube", x: 6, y: 6, w: 6, h: 5, minW: 3, minH: 4 },
       },
       {
@@ -113,8 +113,8 @@ export function GET(request: Request) {
         title: "Threat Intelligence",
         description: "",
         messages: [],
-        sandboxId: null,
-        previewUrl: null,
+        code: null, iframeVersion: 0,
+        
         layout: { i: "w-threat", x: 0, y: 11, w: 4, h: 5, minW: 2, minH: 3 },
       },
       {
@@ -122,8 +122,8 @@ export function GET(request: Request) {
         title: "Events Timeline",
         description: "",
         messages: [],
-        sandboxId: null,
-        previewUrl: null,
+        code: null, iframeVersion: 0,
+        
         layout: { i: "w-timeline", x: 4, y: 11, w: 8, h: 5, minW: 3, minH: 3 },
       },
     ];

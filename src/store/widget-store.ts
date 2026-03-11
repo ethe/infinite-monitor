@@ -15,8 +15,8 @@ export interface Widget {
   description: string;
   messages: WidgetMessage[];
   layout: LayoutItem;
-  sandboxId: string | null;
-  previewUrl: string | null;
+  code: string | null;
+  iframeVersion: number;
 }
 
 interface WidgetStore {
@@ -28,8 +28,9 @@ interface WidgetStore {
   addWidget: (title?: string, description?: string) => string;
   addMessage: (widgetId: string, message: WidgetMessage) => void;
   renameWidget: (id: string, title: string) => void;
-  setSandboxInfo: (widgetId: string, sandboxId: string, previewUrl: string) => void;
-  clearSandboxInfo: (widgetId: string) => void;
+  setWidgetCode: (widgetId: string, code: string) => void;
+  clearWidgetCode: (widgetId: string) => void;
+  bumpIframeVersion: (widgetId: string) => void;
   setStreaming: (widgetId: string, streaming: boolean) => void;
   setCurrentAction: (widgetId: string, action: string | null) => void;
   appendReasoningToMessage: (widgetId: string, messageId: string, text: string) => void;
@@ -90,8 +91,8 @@ export const useWidgetStore = create<WidgetStore>()(
           title,
           description,
           messages: [],
-          sandboxId: null,
-          previewUrl: null,
+          code: null,
+          iframeVersion: 0,
           layout: {
             i: id,
             x: pos.x,
@@ -125,19 +126,27 @@ export const useWidgetStore = create<WidgetStore>()(
         });
       },
 
-      setSandboxInfo: (widgetId, sandboxId, previewUrl) => {
+      setWidgetCode: (widgetId, code) => {
         set({
           widgets: get().widgets.map((w) =>
-            w.id === widgetId ? { ...w, sandboxId, previewUrl } : w
+            w.id === widgetId ? { ...w, code } : w
           ),
         });
       },
 
-      clearSandboxInfo: (widgetId) => {
+      clearWidgetCode: (widgetId) => {
+        set({
+          widgets: get().widgets.map((w) =>
+            w.id === widgetId ? { ...w, code: null, iframeVersion: 0 } : w
+          ),
+        });
+      },
+
+      bumpIframeVersion: (widgetId) => {
         set({
           widgets: get().widgets.map((w) =>
             w.id === widgetId
-              ? { ...w, sandboxId: null, previewUrl: null }
+              ? { ...w, iframeVersion: w.iframeVersion + 1 }
               : w
           ),
         });
@@ -232,8 +241,8 @@ export const useWidgetStore = create<WidgetStore>()(
           reasoningStreamingIds: [],
           widgets: (stored.widgets ?? []).map((w) => ({
             ...w,
-            sandboxId: w.sandboxId ?? null,
-            previewUrl: w.previewUrl ?? null,
+            code: w.code ?? null,
+            iframeVersion: w.iframeVersion ?? 0,
             messages: (w.messages ?? []).map((m) => ({
               ...m,
               reasoning: m.reasoning ?? undefined,

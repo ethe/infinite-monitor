@@ -158,11 +158,17 @@ function updateAssistantMessage(
 
 async function streamToWidget(
   widgetId: string,
-  messages: Array<{ role: "user" | "assistant"; content: string }>,
-  sandboxId: string | null
+  messages: Array<{ role: "user" | "assistant"; content: string }>
 ) {
-  const { addMessage, setSandboxInfo, setStreaming, setCurrentAction, appendReasoningToMessage, setReasoningStreaming } =
-    useWidgetStore.getState();
+  const {
+    addMessage,
+    setWidgetCode,
+    bumpIframeVersion,
+    setStreaming,
+    setCurrentAction,
+    appendReasoningToMessage,
+    setReasoningStreaming,
+  } = useWidgetStore.getState();
 
   setStreaming(widgetId, true);
   const assistantMsgId = nanoid();
@@ -175,7 +181,7 @@ async function streamToWidget(
     const res = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages, sandboxId }),
+      body: JSON.stringify({ messages, widgetId }),
       signal: controller.signal,
     });
 
@@ -212,26 +218,20 @@ async function streamToWidget(
             setReasoningStreaming(widgetId, true);
             appendReasoningToMessage(widgetId, assistantMsgId, event.text);
           } else if (event.type === "text-delta") {
-            // First text token means reasoning phase is done
             setReasoningStreaming(widgetId, false);
             fullText += event.text;
             updateAssistantMessage(widgetId, assistantMsgId, fullText);
-          } else if (event.type === "sandbox-info") {
-            if (event.sandboxId && event.previewUrl) {
-              setSandboxInfo(widgetId, event.sandboxId, event.previewUrl);
+          } else if (event.type === "widget-code") {
+            if (event.code) {
+              setWidgetCode(widgetId, event.code);
+              setCurrentAction(widgetId, "Building widget…");
+              // Bump iframe version after a delay so the container has time to rebuild
+              setTimeout(() => bumpIframeVersion(widgetId), 15000);
             }
           } else if (event.type === "tool-call") {
             let action = "";
-            if (event.toolName === "writeFile") {
-              action = `Writing ${event.args?.path}`;
-            } else if (event.toolName === "readFile") {
-              action = `Reading ${event.args?.path}`;
-            } else if (event.toolName === "runCommand") {
-              const cmd = [
-                event.args?.command,
-                ...(event.args?.args ?? []),
-              ].join(" ");
-              action = `Running ${cmd}`;
+            if (event.toolName === "writeCode") {
+              action = "Writing widget code";
             } else if (event.toolName === "web_search") {
               action = event.args?.query
                 ? `Searching "${event.args.query}"`
@@ -369,7 +369,7 @@ export function ChatSidebar() {
         .catch(() => {});
     }
 
-    streamToWidget(widgetId, messagesForApi, currentWidget.sandboxId);
+    streamToWidget(widgetId, messagesForApi);
   }
 
   return (
