@@ -91,7 +91,7 @@ function ReasoningBlock({
   isStreaming: boolean;
 }) {
   return (
-    <Reasoning isStreaming={isStreaming} defaultOpen={false} className="w-full mb-0!">
+    <Reasoning isStreaming={isStreaming} className="w-full mb-0!">
       <ReasoningTrigger
         className="[&>svg:first-child]:hidden"
         getThinkingMessage={(streaming, duration) =>
@@ -104,7 +104,9 @@ function ReasoningBlock({
           )
         }
       />
-      <ReasoningContent>{text}</ReasoningContent>
+      <ReasoningContent className="max-h-36 overflow-y-auto pr-2">
+        {text}
+      </ReasoningContent>
     </Reasoning>
   );
 }
@@ -122,6 +124,17 @@ function ConversationMessages({
   streamingMsgId: string | null;
   activeAction: string | null;
 }) {
+  const streamingMessage =
+    (streamingMsgId
+      ? messages.find((message) => message.id === streamingMsgId)
+      : null) ?? null;
+  const showPlanningNextMoves =
+    isStreaming &&
+    !isReasoningStreaming &&
+    !activeAction &&
+    Boolean(streamingMessage) &&
+    !streamingMessage?.content;
+
   return (
     <>
       {messages.map((msg) => (
@@ -144,10 +157,13 @@ function ConversationMessages({
           )}
         </Fragment>
       ))}
-      {activeAction && (
+      {(activeAction || showPlanningNextMoves) && (
         <div className="pl-0.5 max-w-full overflow-hidden">
           <Shimmer className="text-xs truncate block max-w-full" duration={1.5}>
-            {activeAction.length > 60 ? activeAction.slice(0, 60) + "…" : activeAction}
+            {(() => {
+              const label = activeAction ?? "Planning next moves";
+              return label.length > 60 ? label.slice(0, 60) + "…" : label;
+            })()}
           </Shimmer>
         </div>
       )}
@@ -397,6 +413,42 @@ export function ChatSidebar() {
     []
   );
 
+  const [isDragging, setIsDragging] = useState(false);
+  const dragCounter = useRef(0);
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounter.current++;
+    if (e.dataTransfer.types.includes("Files")) {
+      setIsDragging(true);
+    }
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounter.current--;
+    if (dragCounter.current === 0) {
+      setIsDragging(false);
+    }
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+  }, []);
+
+  const handleDrop = useCallback(
+    async (e: React.DragEvent) => {
+      e.preventDefault();
+      dragCounter.current = 0;
+      setIsDragging(false);
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        await handleFiles(files);
+      }
+    },
+    [handleFiles]
+  );
+
   useEffect(() => {
     if (!activeWidget || activeWidget.messages.length > 0) return;
     addMessage(activeWidget.id, {
@@ -497,8 +549,17 @@ export function ChatSidebar() {
     >
       <aside
         aria-hidden={!isOpen}
-        className="flex h-full w-md flex-col border-l border-zinc-800 bg-black"
+        className="relative flex h-full w-md flex-col border-l border-zinc-800 bg-black"
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
       >
+        {isDragging && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center border-2 border-dashed border-zinc-500 bg-black/80">
+            <span className="text-xs text-zinc-400">Drop files here</span>
+          </div>
+        )}
         <div className="flex items-center justify-between gap-2 px-5 pt-3 pb-2">
           <div className="flex min-w-0 flex-1 items-center gap-2.5">
             <Pencil className="size-3 shrink-0 text-zinc-600" />

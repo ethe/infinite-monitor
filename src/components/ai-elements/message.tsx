@@ -10,6 +10,7 @@ import { Streamdown } from "streamdown";
 import { cn } from "@/lib/utils";
 import type { MessageAttachment } from "@/store/widget-store";
 import { StreamdownBlock } from "./streamdown-block";
+import { streamdownComponents } from "./streamdown-components";
 
 const streamdownPlugins = { cjk, code, math, mermaid };
 const shikiTheme: [string, string] = ["github-dark", "github-dark"];
@@ -44,7 +45,7 @@ export function MessageContent({
       className={cn(
         "min-w-0 max-w-full text-xs",
         "group-data-[from=user]:overflow-hidden group-data-[from=user]:bg-zinc-800 group-data-[from=user]:px-4 group-data-[from=user]:py-3 group-data-[from=user]:text-zinc-100",
-        "group-data-[from=assistant]:w-full group-data-[from=assistant]:overflow-visible group-data-[from=assistant]:text-zinc-200",
+        "group-data-[from=assistant]:w-full group-data-[from=assistant]:overflow-x-hidden group-data-[from=assistant]:text-zinc-200",
         className
       )}
       {...props}
@@ -63,7 +64,8 @@ export const MessageResponse = memo(function MessageResponse({
         className
       )}
       BlockComponent={StreamdownBlock}
-      controls={{ code: false }}
+      components={streamdownComponents}
+      controls={{ code: false, table: false }}
       plugins={streamdownPlugins}
       shikiTheme={shikiTheme}
       {...props}

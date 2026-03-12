@@ -28,6 +28,7 @@ import { Streamdown } from "streamdown";
 
 import { Shimmer } from "./shimmer";
 import { StreamdownBlock } from "./streamdown-block";
+import { streamdownComponents } from "./streamdown-components";
 
 interface ReasoningContextValue {
   isStreaming: boolean;
@@ -222,7 +223,8 @@ export const ReasoningContent = memo(
       <Streamdown
         className="min-w-0 max-w-none text-xs leading-5 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_a]:break-all"
         BlockComponent={StreamdownBlock}
-        controls={{ code: false }}
+        components={streamdownComponents}
+        controls={{ code: false, table: false }}
         plugins={streamdownPlugins}
         shikiTheme={shikiTheme}
       >
