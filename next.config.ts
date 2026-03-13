@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  serverExternalPackages: ["just-bash", "bash-tool", "node-liblzma", "@mongodb-js/zstd"],
 };
 
 export default nextConfig;
