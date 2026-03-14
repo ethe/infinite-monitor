@@ -64,6 +64,15 @@ interface WidgetStore {
   removeWidget: (id: string) => void;
   setActiveWidget: (id: string | null) => void;
   updateLayouts: (layouts: readonly LayoutItem[]) => void;
+  applyTemplate: (template: {
+    widgets: Array<{
+      title: string;
+      description: string;
+      code: string;
+      files: Record<string, string>;
+      layoutJson: string | null;
+    }>;
+  }) => void;
 }
 
 let counter = 0;
@@ -328,6 +337,41 @@ export const useWidgetStore = create<WidgetStore>()(
           return widget;
         });
         set({ widgets: updated });
+      },
+
+      applyTemplate: (template) => {
+        const { dashboards, activeDashboardId } = get();
+        let dashId = activeDashboardId;
+
+        if (!dashId || !dashboards.find((d) => d.id === dashId)) {
+          dashId = generateId("dash");
+          set((state) => ({
+            dashboards: [...state.dashboards, { id: dashId!, title: "Dashboard", widgetIds: [], createdAt: Date.now() }],
+            activeDashboardId: dashId,
+          }));
+        }
+
+        const newWidgets: Widget[] = template.widgets.map((tw) => {
+          const id = generateId("widget");
+          const layout = tw.layoutJson ? JSON.parse(tw.layoutJson) : { x: 0, y: 0, w: 4, h: 3, minW: 2, minH: 2 };
+          return {
+            id,
+            title: tw.title,
+            description: tw.description,
+            messages: [],
+            code: tw.code,
+            files: tw.files,
+            iframeVersion: 0,
+            layout: { ...layout, i: id },
+          };
+        });
+
+        set((state) => ({
+          widgets: [...state.widgets, ...newWidgets],
+          dashboards: state.dashboards.map((d) =>
+            d.id === dashId ? { ...d, widgetIds: [...d.widgetIds, ...newWidgets.map((w) => w.id)] } : d
+          ),
+        }));
       },
     }),
     {
