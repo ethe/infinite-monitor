@@ -64,6 +64,15 @@ interface WidgetStore {
   removeWidget: (id: string) => void;
   setActiveWidget: (id: string | null) => void;
   updateLayouts: (layouts: readonly LayoutItem[]) => void;
+  applyTemplate: (template: {
+    widgets: Array<{
+      title: string;
+      description: string;
+      code: string;
+      files: Record<string, string>;
+      layoutJson: string | null;
+    }>;
+  }) => void;
 }
 
 let counter = 0;
@@ -128,10 +137,21 @@ export const useWidgetStore = create<WidgetStore>()(
       },
 
       removeDashboard: (id) => {
-        set((state) => ({
-          dashboards: state.dashboards.filter((d) => d.id !== id),
-          activeDashboardId: state.activeDashboardId === id ? null : state.activeDashboardId,
-        }));
+        const dashboard = get().dashboards.find((d) => d.id === id);
+        const widgetIds = dashboard?.widgetIds ?? [];
+        set((state) => {
+          const nextActions = { ...state.currentActions };
+          for (const wid of widgetIds) delete nextActions[wid];
+          return {
+            dashboards: state.dashboards.filter((d) => d.id !== id),
+            widgets: state.widgets.filter((w) => !widgetIds.includes(w.id)),
+            activeDashboardId: state.activeDashboardId === id ? null : state.activeDashboardId,
+            activeWidgetId: widgetIds.includes(state.activeWidgetId ?? "") ? null : state.activeWidgetId,
+            streamingWidgetIds: state.streamingWidgetIds.filter((wid) => !widgetIds.includes(wid)),
+            reasoningStreamingIds: state.reasoningStreamingIds.filter((wid) => !widgetIds.includes(wid)),
+            currentActions: nextActions,
+          };
+        });
       },
 
       setActiveDashboard: (id) => {
@@ -328,6 +348,55 @@ export const useWidgetStore = create<WidgetStore>()(
           return widget;
         });
         set({ widgets: updated });
+      },
+
+      applyTemplate: (template) => {
+        const { dashboards, activeDashboardId } = get();
+        let dashId = activeDashboardId;
+
+        if (!dashId || !dashboards.find((d) => d.id === dashId)) {
+          dashId = generateId("dash");
+          set((state) => ({
+            dashboards: [...state.dashboards, { id: dashId!, title: "Dashboard", widgetIds: [], createdAt: Date.now() }],
+            activeDashboardId: dashId,
+          }));
+        }
+
+        const newWidgets: Widget[] = template.widgets.map((tw) => {
+          const id = generateId("widget");
+          const layout = tw.layoutJson ? JSON.parse(tw.layoutJson) : { x: 0, y: 0, w: 4, h: 3, minW: 2, minH: 2 };
+          return {
+            id,
+            title: tw.title,
+            description: tw.description,
+            messages: [],
+            code: tw.code,
+            files: tw.files,
+            iframeVersion: 0,
+            layout: { ...layout, i: id },
+          };
+        });
+
+        set((state) => ({
+          widgets: [...state.widgets, ...newWidgets],
+          dashboards: state.dashboards.map((d) =>
+            d.id === dashId ? { ...d, widgetIds: [...d.widgetIds, ...newWidgets.map((w) => w.id)] } : d
+          ),
+        }));
+
+        fetch("/api/widgets/bootstrap", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            widgets: newWidgets.map((w) => ({
+              id: w.id,
+              title: w.title,
+              description: w.description,
+              code: w.code,
+              files: w.files,
+            })),
+          }),
+        }).catch(console.error);
       },
     }),
     {
