@@ -129,29 +129,40 @@ export async function POST(request: Request) {
     return Response.json({ error: "widgetId required" }, { status: 400 });
   }
 
+  const SANDBOX_ROOT = "/widget";
+
   const widgetSandbox = {
     async executeCommand(command: string) {
       const bash = new Bash({ javascript: true });
       const result = await bash.exec(command);
       return { stdout: result.stdout, stderr: result.stderr, exitCode: result.exitCode };
     },
-    async readFile(path: string) {
-      const content = await readWidgetFile(widgetId, path);
-      if (content === null) throw new Error(`File not found: ${path}`);
+    async readFile(absolutePath: string) {
+      const relative = absolutePath.startsWith(SANDBOX_ROOT + "/")
+        ? absolutePath.slice(SANDBOX_ROOT.length + 1)
+        : absolutePath.startsWith("/") ? absolutePath.slice(1) : absolutePath;
+      const content = await readWidgetFile(widgetId, relative);
+      if (content === null) throw new Error(`File not found: ${relative}`);
       return content;
     },
     async writeFiles(files: Array<{ path: string; content: string | Buffer }>) {
       for (const f of files) {
+        const relative = f.path.startsWith(SANDBOX_ROOT + "/")
+          ? f.path.slice(SANDBOX_ROOT.length + 1)
+          : f.path.startsWith("/") ? f.path.slice(1) : f.path;
         const content = typeof f.content === "string" ? f.content : f.content.toString("utf-8");
-        await writeWidgetFile(widgetId, f.path, content);
-        if (f.path === "src/App.tsx") {
+        await writeWidgetFile(widgetId, relative, content);
+        if (relative === "src/App.tsx") {
           rebuildWidget(widgetId).catch(console.error);
         }
       }
     },
   };
 
-  const { tools: bashTools } = await createBashTool({ sandbox: widgetSandbox });
+  const { tools: bashTools } = await createBashTool({
+    sandbox: widgetSandbox,
+    destination: SANDBOX_ROOT,
+  });
 
   const listDashboardWidgetsTool = tool({
     description:
