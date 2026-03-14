@@ -18,9 +18,7 @@ interface Template {
   name: string;
   description: string;
   icon: string;
-  screenshot: string;
   widgetCount: number;
-  preview: string[];
   widgets: Array<{
     title: string;
     description: string;
@@ -91,14 +89,7 @@ function TemplateGallery() {
               disabled={isApplying}
               className="group relative flex flex-col bg-zinc-900/30 border border-zinc-800 hover:border-zinc-600 hover:bg-zinc-900/60 transition-all text-left disabled:opacity-50 overflow-hidden"
             >
-              <div className="w-full h-36 overflow-hidden bg-zinc-950">
-                <img
-                  src={template.screenshot}
-                  alt={template.name}
-                  className="w-full h-full object-cover object-top opacity-70 group-hover:opacity-100 transition-opacity"
-                />
-              </div>
-              <div className="flex flex-col gap-2 p-4">
+              <div className="flex flex-col gap-2 p-5">
                 <div className="flex items-center gap-2">
                   <Icon className="w-4 h-4 text-zinc-500 group-hover:text-zinc-300 transition-colors" />
                   <span className="text-xs font-medium uppercase tracking-wider text-zinc-300">
