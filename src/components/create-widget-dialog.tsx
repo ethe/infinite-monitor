@@ -12,7 +12,7 @@ export function CreateWidgetDialog() {
   return (
     <Button
       size="sm"
-      className="gap-1.5 border border-zinc-700 bg-zinc-800 text-zinc-200 hover:bg-zinc-700"
+      className="gap-1.5 border border-zinc-700 bg-zinc-800 text-zinc-200 hover:bg-zinc-700 uppercase tracking-wider text-xs"
       onClick={() => {
         const id = addWidget();
         setActiveWidget(id);

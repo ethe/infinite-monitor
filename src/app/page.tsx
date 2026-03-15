@@ -43,7 +43,7 @@ export default function Home() {
               href="https://github.com/homanp/infinite-monitor"
               target="_blank"
               rel="noopener noreferrer"
-              className={buttonVariants({ size: "sm", className: "gap-1.5 border border-zinc-700 bg-zinc-800 text-zinc-200 hover:bg-zinc-700" })}
+              className={buttonVariants({ size: "sm", className: "gap-1.5 border border-zinc-700 bg-zinc-800 text-zinc-200 hover:bg-zinc-700 uppercase tracking-wider !text-xs" })}
             >
               <Star className="h-3.5 w-3.5" />
               GitHub
