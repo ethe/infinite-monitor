@@ -10,6 +10,9 @@ import { cohere as createCohere } from "@ai-sdk/cohere";
 import { cerebras as createCerebras } from "@ai-sdk/cerebras";
 import { togetherai as createTogetherai } from "@ai-sdk/togetherai";
 import { fireworks as createFireworks } from "@ai-sdk/fireworks";
+import { moonshotai as createMoonshotai } from "@ai-sdk/moonshotai";
+import { alibaba as createAlibaba } from "@ai-sdk/alibaba";
+import { deepinfra as createDeepinfra } from "@ai-sdk/deepinfra";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ProviderFactory = (modelId: string, opts?: any) => any;
@@ -27,6 +30,9 @@ const providers: Record<string, ProviderFactory> = {
   cerebras: createCerebras,
   togetherai: createTogetherai,
   fireworks: createFireworks,
+  moonshotai: createMoonshotai,
+  alibaba: createAlibaba,
+  deepinfra: createDeepinfra,
 };
 
 export function createModel(modelStr: string, apiKey?: string) {

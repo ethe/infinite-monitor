@@ -352,7 +352,7 @@ async function streamToWidget(
   }
 }
 
-function ModelSelectorWidget() {
+function useModelSelector() {
   const selectedModel = useSettingsStore((s) => s.selectedModel);
   const setModel = useSettingsStore((s) => s.setModel);
   const apiKeys = useSettingsStore((s) => s.apiKeys);
@@ -385,63 +385,61 @@ function ModelSelectorWidget() {
     }
   };
 
-  return (
-    <div className="space-y-1.5">
-      <ModelSelector open={open} onOpenChange={setOpen}>
-        <ModelSelectorTrigger className="flex items-center gap-2 w-full px-2.5 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 bg-zinc-900/50 border border-zinc-800 hover:border-zinc-700 transition-colors text-left cursor-pointer">
-          <ModelSelectorLogo provider={providerId as "anthropic"} className="size-3.5" />
-          <span className="flex-1 truncate">{model?.name ?? modelId}</span>
-          {!hasKey && <span className="text-[9px] text-yellow-500/70">no key</span>}
-        </ModelSelectorTrigger>
-        <ModelSelectorContent>
-          <ModelSelectorInput placeholder="Search models..." />
-          <ModelSelectorList>
-            <ModelSelectorEmpty>No models found.</ModelSelectorEmpty>
-            {PROVIDERS.map((p) => (
-              <ModelSelectorGroup key={p.id} heading={p.name}>
-                {p.models.map((m) => (
-                  <ModelSelectorItem
-                    key={`${p.id}:${m.id}`}
-                    value={`${p.id}:${m.id} ${m.name} ${p.name}`}
-                    onSelect={() => handleSelect(`${p.id}:${m.id}`)}
-                    className="flex items-center gap-2"
-                  >
-                    <ModelSelectorLogo provider={p.id as "anthropic"} />
-                    <ModelSelectorName>{m.name}</ModelSelectorName>
-                    {!apiKeys[p.id] && (
-                      <span className="text-[9px] text-zinc-600">needs key</span>
-                    )}
-                  </ModelSelectorItem>
-                ))}
-              </ModelSelectorGroup>
-            ))}
-          </ModelSelectorList>
-        </ModelSelectorContent>
-      </ModelSelector>
-
-      {(showKeyInput || !hasKey) && (
-        <div className="flex items-center gap-1.5">
-          <input
-            type="password"
-            value={keyInput}
-            onChange={(e) => setKeyInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSaveKey()}
-            placeholder={`${provider?.name ?? providerId} API key...`}
-            className="flex-1 bg-zinc-900 border border-zinc-800 text-xs px-2.5 py-1.5 text-zinc-300 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600"
-          />
-          <button
-            onClick={handleSaveKey}
-            className="px-2.5 py-1.5 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors"
-          >
-            Save
-          </button>
-        </div>
-      )}
-    </div>
+  const trigger = (
+    <ModelSelector open={open} onOpenChange={setOpen}>
+      <ModelSelectorTrigger className="inline-flex h-7 items-center gap-1.5 px-2 text-xs text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors cursor-pointer">
+        <ModelSelectorLogo provider={providerId as "anthropic"} className="size-3.5" />
+        <span>{model?.name ?? modelId}</span>
+        {!hasKey && <span className="size-1.5 rounded-full bg-yellow-500/70 shrink-0" />}
+      </ModelSelectorTrigger>
+      <ModelSelectorContent>
+        <ModelSelectorInput placeholder="Search models..." />
+        <ModelSelectorList>
+          <ModelSelectorEmpty>No models found.</ModelSelectorEmpty>
+          {PROVIDERS.map((p) => (
+            <ModelSelectorGroup key={p.id} heading={p.name}>
+              {p.models.map((m) => (
+                <ModelSelectorItem
+                  key={`${p.id}:${m.id}`}
+                  value={`${p.id}:${m.id} ${m.name} ${p.name}`}
+                  onSelect={() => handleSelect(`${p.id}:${m.id}`)}
+                  className="flex items-center gap-2"
+                >
+                  <ModelSelectorLogo provider={p.id as "anthropic"} />
+                  <ModelSelectorName>{m.name}</ModelSelectorName>
+                </ModelSelectorItem>
+              ))}
+            </ModelSelectorGroup>
+          ))}
+        </ModelSelectorList>
+      </ModelSelectorContent>
+    </ModelSelector>
   );
+
+  const keyInputEl = (showKeyInput || !hasKey) ? (
+    <div className="flex items-center gap-1.5">
+      <input
+        type="password"
+        value={keyInput}
+        onChange={(e) => setKeyInput(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && handleSaveKey()}
+        placeholder={`${provider?.name ?? providerId} API key...`}
+        className="flex-1 bg-zinc-900 border border-zinc-800 text-xs px-2.5 py-1.5 text-zinc-300 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600"
+      />
+      <button
+        onClick={handleSaveKey}
+        className="px-2.5 py-1.5 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors"
+      >
+        Save
+      </button>
+    </div>
+  ) : null;
+
+  return { trigger, keyInputEl };
 }
 
 export function ChatSidebar() {
+  const { trigger: modelTrigger, keyInputEl: modelKeyInput } = useModelSelector();
   const widgets = useWidgetStore((s) => s.widgets);
   const activeWidgetId = useWidgetStore((s) => s.activeWidgetId);
   const streamingWidgetIds = useWidgetStore((s) => s.streamingWidgetIds);
@@ -730,7 +728,7 @@ export function ChatSidebar() {
         </Conversation>
 
         <div className="px-5 py-3 space-y-2">
-          <ModelSelectorWidget />
+          {modelKeyInput}
           <PromptInput onSubmit={handleSubmit}>
             {pendingFiles.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
@@ -766,16 +764,15 @@ export function ChatSidebar() {
               disabled={isActiveStreaming}
             />
             <div className="flex items-center justify-between">
-              <span className="text-[9px] text-zinc-600">
-                {isActiveStreaming ? (
-                  <span className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
+                {modelTrigger}
+                {isActiveStreaming && (
+                  <span className="flex items-center gap-2 text-[9px]">
                     <KittLoader />
                     <span className="text-zinc-400">esc to interrupt</span>
                   </span>
-                ) : (
-                  "Enter to send · Shift+Enter for newline"
                 )}
-              </span>
+              </div>
               <div className="flex items-center gap-1">
                 <PromptInputFileUpload
                   onFiles={handleFiles}
