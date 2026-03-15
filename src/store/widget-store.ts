@@ -1,6 +1,5 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { LayoutItem } from "react-grid-layout";
 
 export interface MessageAttachment {
   name: string;
@@ -17,12 +16,25 @@ export interface WidgetMessage {
   attachments?: MessageAttachment[];
 }
 
+export interface CanvasLayout {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export interface CanvasViewport {
+  panX: number;
+  panY: number;
+  zoom: number;
+}
+
 export interface Widget {
   id: string;
   title: string;
   description: string;
   messages: WidgetMessage[];
-  layout: LayoutItem;
+  layout: CanvasLayout;
   code: string | null;
   files: Record<string, string>;
   iframeVersion: number;
@@ -43,6 +55,7 @@ interface WidgetStore {
   streamingWidgetIds: string[];
   currentActions: Record<string, string>;
   reasoningStreamingIds: string[];
+  viewports: Record<string, CanvasViewport>;
 
   addDashboard: (title?: string) => string;
   renameDashboard: (id: string, title: string) => void;
@@ -63,7 +76,8 @@ interface WidgetStore {
   setReasoningStreaming: (widgetId: string, streaming: boolean) => void;
   removeWidget: (id: string) => void;
   setActiveWidget: (id: string | null) => void;
-  updateLayouts: (layouts: readonly LayoutItem[]) => void;
+  updateWidgetLayout: (id: string, layout: Partial<CanvasLayout>) => void;
+  setViewport: (dashboardId: string, viewport: CanvasViewport) => void;
   applyTemplate: (template: {
     widgets: Array<{
       title: string;
@@ -81,31 +95,34 @@ function generateId(prefix = "widget") {
   return `${prefix}-${Date.now()}-${counter++}`;
 }
 
+function migrateViewports(
+  viewports: Record<string, CanvasViewport> | undefined
+): Record<string, CanvasViewport> {
+  if (!viewports) return {};
+  const migrated: Record<string, CanvasViewport> = {};
+  for (const [id, vp] of Object.entries(viewports)) {
+    if (vp.panX === 0 && vp.panY === 0 && vp.zoom === 1) continue;
+    migrated[id] = vp;
+  }
+  return migrated;
+}
+
 export function getNextPosition(widgets: Widget[], widgetIds: string[]): { x: number; y: number } {
   const dashboardWidgets = widgets.filter((w) => widgetIds.includes(w.id));
   if (dashboardWidgets.length === 0) return { x: 0, y: 0 };
 
-  let maxY = 0;
-  let xAtMaxY = 0;
-  let hAtMaxY = 0;
+  let maxRight = 0;
+  let yAtMaxRight = 0;
 
   for (const w of dashboardWidgets) {
-    const bottom = w.layout.y + w.layout.h;
-    if (bottom > maxY + hAtMaxY) {
-      maxY = w.layout.y;
-      xAtMaxY = w.layout.x + w.layout.w;
-      hAtMaxY = w.layout.h;
-    } else if (w.layout.y === maxY) {
-      const right = w.layout.x + w.layout.w;
-      if (right > xAtMaxY) xAtMaxY = right;
+    const right = w.layout.x + w.layout.w;
+    if (right > maxRight) {
+      maxRight = right;
+      yAtMaxRight = w.layout.y;
     }
   }
 
-  if (xAtMaxY + 4 <= 12) {
-    return { x: xAtMaxY, y: maxY };
-  }
-
-  return { x: 0, y: maxY + hAtMaxY };
+  return { x: maxRight, y: yAtMaxRight };
 }
 
 export const useWidgetStore = create<WidgetStore>()(
@@ -118,6 +135,7 @@ export const useWidgetStore = create<WidgetStore>()(
       streamingWidgetIds: [],
       currentActions: {},
       reasoningStreamingIds: [],
+      viewports: {},
 
       addDashboard: (title = "Dashboard") => {
         const id = generateId("dash");
@@ -184,13 +202,10 @@ export const useWidgetStore = create<WidgetStore>()(
           files: {},
           iframeVersion: 0,
           layout: {
-            i: id,
             x: pos.x,
             y: pos.y,
             w: 4,
             h: 3,
-            minW: 2,
-            minH: 2,
           },
         };
 
@@ -338,16 +353,18 @@ export const useWidgetStore = create<WidgetStore>()(
         set({ activeWidgetId: id });
       },
 
-      updateLayouts: (layouts) => {
-        const { widgets } = get();
-        const updated = widgets.map((widget) => {
-          const layoutItem = layouts.find((l) => l.i === widget.id);
-          if (layoutItem) {
-            return { ...widget, layout: { ...layoutItem } };
-          }
-          return widget;
+      updateWidgetLayout: (id, layout) => {
+        set({
+          widgets: get().widgets.map((w) =>
+            w.id === id ? { ...w, layout: { ...w.layout, ...layout } } : w
+          ),
         });
-        set({ widgets: updated });
+      },
+
+      setViewport: (dashboardId, viewport) => {
+        set((state) => ({
+          viewports: { ...state.viewports, [dashboardId]: viewport },
+        }));
       },
 
       applyTemplate: (template) => {
@@ -364,7 +381,13 @@ export const useWidgetStore = create<WidgetStore>()(
 
         const newWidgets: Widget[] = template.widgets.map((tw) => {
           const id = generateId("widget");
-          const layout = tw.layoutJson ? JSON.parse(tw.layoutJson) : { x: 0, y: 0, w: 4, h: 3, minW: 2, minH: 2 };
+          const parsed = tw.layoutJson ? JSON.parse(tw.layoutJson) : {};
+          const layout: CanvasLayout = {
+            x: parsed.x ?? 0,
+            y: parsed.y ?? 0,
+            w: parsed.w ?? 4,
+            h: parsed.h ?? 3,
+          };
           return {
             id,
             title: tw.title,
@@ -373,7 +396,7 @@ export const useWidgetStore = create<WidgetStore>()(
             code: tw.code,
             files: tw.files,
             iframeVersion: 0,
-            layout: { ...layout, i: id },
+            layout,
           };
         });
 
@@ -405,18 +428,28 @@ export const useWidgetStore = create<WidgetStore>()(
         const stored = persisted as Partial<WidgetStore> | undefined;
         if (!stored) return current;
 
-        const widgets = (stored.widgets ?? []).map((w) => ({
-          ...w,
-          code: w.code ?? null,
-          files: w.files ?? {},
-          iframeVersion: w.iframeVersion ?? 0,
-          messages: (w.messages ?? []).map((m) => ({
-            ...m,
-            reasoning: m.reasoning ?? undefined,
-          })),
-        }));
+        const widgets = (stored.widgets ?? []).map((w) => {
+          const oldLayout = w.layout as unknown as Record<string, unknown>;
+          const layout: CanvasLayout = {
+            x: (oldLayout.x as number) ?? 0,
+            y: (oldLayout.y as number) ?? 0,
+            w: (oldLayout.w as number) ?? 4,
+            h: (oldLayout.h as number) ?? 3,
+          };
 
-        // Migrate from old format: if no dashboards exist but widgets do, create a default
+          return {
+            ...w,
+            code: w.code ?? null,
+            files: w.files ?? {},
+            iframeVersion: w.iframeVersion ?? 0,
+            layout,
+            messages: (w.messages ?? []).map((m) => ({
+              ...m,
+              reasoning: m.reasoning ?? undefined,
+            })),
+          };
+        });
+
         let dashboards = stored.dashboards ?? [];
         if (dashboards.length === 0 && widgets.length > 0) {
           dashboards = [{
@@ -435,6 +468,7 @@ export const useWidgetStore = create<WidgetStore>()(
           streamingWidgetIds: [],
           currentActions: {},
           reasoningStreamingIds: [],
+          viewports: migrateViewports(stored.viewports),
           widgets,
         };
       },

@@ -765,12 +765,13 @@ export function ChatSidebar() {
             />
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1">
-                {modelTrigger}
-                {isActiveStreaming && (
-                  <span className="flex items-center gap-2 text-[9px]">
+                {isActiveStreaming ? (
+                  <span className="flex items-center gap-2 text-[9px] px-2">
                     <KittLoader />
                     <span className="text-zinc-400">esc to interrupt</span>
                   </span>
+                ) : (
+                  modelTrigger
                 )}
               </div>
               <div className="flex items-center gap-1">

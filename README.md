@@ -33,13 +33,13 @@ The agent has 6 tools at its disposal:
 - [Node.js](https://nodejs.org/) 20+
 - [Docker](https://www.docker.com/) running locally
 - An [Anthropic API key](https://console.anthropic.com/)
+- [Make](https://www.gnu.org/software/make/) (pre-installed on macOS/Linux)
 
 ### Setup
 
 ```bash
 git clone https://github.com/homanp/infinite-monitor.git
 cd infinite-monitor
-npm install
 ```
 
 Create `.env.local`:
@@ -48,19 +48,34 @@ Create `.env.local`:
 ANTHROPIC_API_KEY=your-api-key-here
 ```
 
-Build the widget runtime Docker image:
+Bootstrap everything (install deps + build Docker image + start dev server):
 
 ```bash
-docker build -t widget-base:latest ./docker/widget-base
+make all
 ```
 
-Start the dev server:
+Or step by step:
 
 ```bash
-npm run dev
+make setup   # npm install + build widget-base Docker image
+make dev     # start Next.js dev server
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
+
+### Available make targets
+
+| Command | Description |
+|---------|-------------|
+| `make setup` | Install npm deps + build Docker image (first-time) |
+| `make docker` | Rebuild the widget runtime Docker image |
+| `make dev` | Start the Next.js dev server |
+| `make build` | Production build |
+| `make start` | Start production server |
+| `make test` | Run tests |
+| `make lint` | Run linter |
+| `make clean` | Remove build artifacts, Docker container, and volume |
+| `make all` | Full bootstrap: setup + dev |
 
 ## Architecture
 
@@ -68,8 +83,8 @@ Open [http://localhost:3000](http://localhost:3000).
 ┌─────────────────────────────────────────────────────────┐
 │  Next.js App                                            │
 │  ┌──────────────────────┐  ┌─────────────────────────┐  │
-│  │  Dashboard Grid      │  │  Chat Sidebar           │  │
-│  │  (react-grid-layout) │  │  (AI conversation)      │  │
+│  │  Infinite Canvas     │  │  Chat Sidebar           │  │
+│  │  (pan / zoom / grid) │  │  (AI conversation)      │  │
 │  │                      │  │                          │  │
 │  │  ┌──────┐ ┌──────┐   │  │  User: "build a chart"  │  │
 │  │  │iframe│ │iframe│   │  │  Agent: writes code...   │  │
@@ -91,7 +106,7 @@ Open [http://localhost:3000](http://localhost:3000).
 └─────────┘  └──────────┘  └─────────────────┘
 ```
 
-**Client** — Next.js 16 + React 19. Zustand store persisted to localStorage. Widgets rendered as iframes via `react-grid-layout`.
+**Client** — Next.js 16 + React 19. Zustand store persisted to localStorage. Widgets rendered as iframes on an infinite canvas with pan, zoom, and grid-snapped placement.
 
 **Server** — Next.js API routes. AI chat uses Vercel AI SDK with Claude. Widget files stored in SQLite via Drizzle ORM. CORS proxy for widget API calls.
 
@@ -111,7 +126,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 **CORS proxy** — Widgets can fetch any external API through the built-in proxy at `/api/proxy?url=...`.
 
-**Drag and resize** — Full `react-grid-layout` support. Drag widgets by their title bar, resize from any edge.
+**Infinite canvas** — Pan, zoom, and place widgets anywhere on an unbounded grid. Drag widgets by their title bar, resize from the corner handle. Widgets snap to grid cells.
 
 **Persistent builds** — Widget builds are stored on a Docker volume. Container restarts don't lose your built widgets.
 
@@ -127,7 +142,7 @@ Open [http://localhost:3000](http://localhost:3000).
 | State | Zustand (persisted to localStorage) |
 | Database | SQLite via Drizzle ORM |
 | Container | Docker (Vite + serve) |
-| Grid | react-grid-layout |
+| Canvas | Custom infinite canvas (pan/zoom/grid-snap) |
 | Charts | Recharts (in widgets) |
 | Maps | MapLibre GL (in widgets) |
 
@@ -146,7 +161,10 @@ src/
 ├── components/
 │   ├── ai-elements/       # Chat UI (messages, reasoning, code blocks)
 │   ├── chat-sidebar.tsx   # AI chat panel
-│   ├── dashboard-grid.tsx # Widget grid layout
+│   ├── dashboard-grid.tsx # Dashboard orchestrator
+│   ├── infinite-canvas.tsx # Pan/zoom infinite canvas
+│   ├── draggable-widget.tsx # Grid-snapped drag & resize
+│   ├── zoom-controls.tsx  # Canvas zoom UI
 │   ├── widget-card.tsx    # Widget iframe container
 │   └── dashboard-picker.tsx
 ├── db/                    # SQLite schema + queries
