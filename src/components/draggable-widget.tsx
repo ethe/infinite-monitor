@@ -147,6 +147,7 @@ export function DraggableWidget({
         />
       )}
       <div
+        data-widget
         className="absolute"
         style={{
           left: pixelX,
