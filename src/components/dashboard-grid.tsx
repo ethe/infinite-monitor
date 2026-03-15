@@ -1,18 +1,16 @@
 "use client";
 
-import { useMemo, useCallback, useState, useEffect } from "react";
-import { GridLayout, useContainerWidth } from "react-grid-layout";
-import type { Layout } from "react-grid-layout";
+import { useMemo, useCallback, useState, useEffect, useRef } from "react";
 import { LayoutGrid, TrendingUp, Shield, Globe } from "lucide-react";
 import { useWidgetStore } from "@/store/widget-store";
 import { WidgetCard } from "@/components/widget-card";
 import { deleteWidgetFromDb, scheduleSyncToServer } from "@/lib/sync-db";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { CreateWidgetDialog } from "@/components/create-widget-dialog";
-
-const COLS = 12;
-const ROW_HEIGHT = 80;
-const MARGIN = 12;
+import { InfiniteCanvas } from "@/components/infinite-canvas";
+import { DraggableWidget } from "@/components/draggable-widget";
+import { ZoomControls } from "@/components/zoom-controls";
+import type { CanvasLayout } from "@/store/widget-store";
 
 interface Template {
   name: string;
@@ -128,9 +126,29 @@ export function DashboardGrid() {
   const allWidgets = useWidgetStore((s) => s.widgets);
   const dashboards = useWidgetStore((s) => s.dashboards);
   const activeDashboardId = useWidgetStore((s) => s.activeDashboardId);
-  const updateLayouts = useWidgetStore((s) => s.updateLayouts);
+  const updateWidgetLayout = useWidgetStore((s) => s.updateWidgetLayout);
   const removeWidget = useWidgetStore((s) => s.removeWidget);
-  const { width, containerRef, mounted } = useContainerWidth();
+  const viewports = useWidgetStore((s) => s.viewports);
+  const setViewport = useWidgetStore((s) => s.setViewport);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) {
+        setContainerSize({
+          width: entry.contentRect.width,
+          height: entry.contentRect.height,
+        });
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   const activeDashboard = dashboards.find((d) => d.id === activeDashboardId);
 
@@ -138,6 +156,21 @@ export function DashboardGrid() {
     if (!activeDashboard) return allWidgets;
     return allWidgets.filter((w) => activeDashboard.widgetIds.includes(w.id));
   }, [allWidgets, activeDashboard]);
+
+  const DEFAULT_VIEWPORT = { panX: 24, panY: 60, zoom: 1 };
+
+  const viewport = activeDashboardId
+    ? viewports[activeDashboardId] ?? DEFAULT_VIEWPORT
+    : DEFAULT_VIEWPORT;
+
+  const handleViewportChange = useCallback(
+    (panX: number, panY: number, zoom: number) => {
+      if (activeDashboardId) {
+        setViewport(activeDashboardId, { panX, panY, zoom });
+      }
+    },
+    [activeDashboardId, setViewport]
+  );
 
   const handleRemove = useCallback(
     (id: string) => {
@@ -147,16 +180,11 @@ export function DashboardGrid() {
     [removeWidget]
   );
 
-  const layout: Layout = useMemo(
-    () => widgets.map((w) => ({ ...w.layout })),
-    [widgets]
-  );
-
   const handleLayoutChange = useCallback(
-    (newLayout: Layout) => {
-      updateLayouts(newLayout);
+    (widgetId: string, layout: CanvasLayout) => {
+      updateWidgetLayout(widgetId, layout);
     },
-    [updateLayouts]
+    [updateWidgetLayout]
   );
 
   if (!hydrated) {
@@ -164,7 +192,7 @@ export function DashboardGrid() {
   }
 
   return (
-    <div ref={containerRef} className="min-w-0 flex-1 w-full overflow-hidden">
+    <div ref={containerRef} className="min-w-0 flex-1 w-full overflow-hidden relative">
       {widgets.length === 0 ? (
         <ScrollArea className="h-full w-full">
           <div className="flex flex-col items-center justify-center min-h-full py-16 gap-12">
@@ -186,36 +214,37 @@ export function DashboardGrid() {
           </div>
         </ScrollArea>
       ) : (
-        <ScrollArea className="h-full w-full">
-          <div className="px-5 pt-1 pb-40">
-            {mounted && (
-              <GridLayout
-                className="layout"
-                layout={layout}
-                width={width - 40}
-                gridConfig={{
-                  cols: COLS,
-                  rowHeight: ROW_HEIGHT,
-                  margin: [MARGIN, MARGIN] as const,
-                  containerPadding: [0, 0] as const,
-                }}
-                dragConfig={{
-                  handle: ".drag-handle",
-                }}
-                resizeConfig={{
-                  enabled: true,
-                }}
-                onLayoutChange={handleLayoutChange}
+        <>
+          <InfiniteCanvas
+            panX={viewport.panX}
+            panY={viewport.panY}
+            zoom={viewport.zoom}
+            onViewportChange={handleViewportChange}
+          >
+            {widgets.map((widget) => (
+              <DraggableWidget
+                key={widget.id}
+                x={widget.layout.x}
+                y={widget.layout.y}
+                w={widget.layout.w}
+                h={widget.layout.h}
+                zoom={viewport.zoom}
+                onLayoutChange={(layout) => handleLayoutChange(widget.id, layout)}
               >
-                {widgets.map((widget) => (
-                  <div key={widget.id} className="relative h-full">
-                    <WidgetCard widget={widget} onRemove={handleRemove} />
-                  </div>
-                ))}
-              </GridLayout>
-            )}
-          </div>
-        </ScrollArea>
+                <WidgetCard widget={widget} onRemove={handleRemove} />
+              </DraggableWidget>
+            ))}
+          </InfiniteCanvas>
+          <ZoomControls
+            zoom={viewport.zoom}
+            panX={viewport.panX}
+            panY={viewport.panY}
+            containerWidth={containerSize.width}
+            containerHeight={containerSize.height}
+            widgets={widgets}
+            onViewportChange={handleViewportChange}
+          />
+        </>
       )}
     </div>
   );

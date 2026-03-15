@@ -30,8 +30,19 @@ if (!tableNames.has("dashboards")) {
   )`);
 }
 
-// Add files_json to widgets if missing
-if (tableNames.has("widgets")) {
+if (!tableNames.has("widgets")) {
+  sqlite.exec(`CREATE TABLE widgets (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL DEFAULT 'Untitled Widget',
+    description TEXT NOT NULL DEFAULT '',
+    code TEXT,
+    files_json TEXT,
+    layout_json TEXT,
+    messages_json TEXT,
+    created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+    updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+  )`);
+} else {
   const cols = sqlite.prepare("PRAGMA table_info(widgets)").all() as { name: string }[];
   const colNames = new Set(cols.map((c) => c.name));
   if (!colNames.has("files_json")) {

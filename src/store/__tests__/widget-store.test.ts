@@ -8,7 +8,7 @@ function makeWidget(id: string, x: number, y: number, w: number, h: number): Wid
     title: id,
     description: "",
     messages: [],
-    layout: { i: id, x, y, w, h, minW: 2, minH: 2 },
+    layout: { x, y, w, h },
     code: null,
     files: {},
     iframeVersion: 0,
@@ -30,13 +30,13 @@ describe("getNextPosition", () => {
     expect(getNextPosition(widgets, ["w1"])).toEqual({ x: 4, y: 0 });
   });
 
-  it("wraps to next row when row is full", () => {
+  it("places to the right of the last widget in a full row", () => {
     const widgets = [
       makeWidget("w1", 0, 0, 4, 3),
       makeWidget("w2", 4, 0, 4, 3),
       makeWidget("w3", 8, 0, 4, 3),
     ];
-    expect(getNextPosition(widgets, ["w1", "w2", "w3"])).toEqual({ x: 0, y: 3 });
+    expect(getNextPosition(widgets, ["w1", "w2", "w3"])).toEqual({ x: 12, y: 0 });
   });
 
   it("places next to rightmost widget on the last row", () => {
