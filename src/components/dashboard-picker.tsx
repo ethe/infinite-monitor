@@ -121,7 +121,7 @@ export function DashboardPicker() {
         size="sm"
         onClick={() => setOpen(!open)}
         className={cn(
-          "gap-1.5 border border-zinc-700 bg-zinc-800 text-zinc-200 hover:bg-zinc-700",
+          "gap-1.5 border border-zinc-700 bg-zinc-800 text-zinc-200 hover:bg-zinc-700 uppercase tracking-wider text-xs",
           open && "bg-zinc-700"
         )}
       >
@@ -140,7 +140,7 @@ export function DashboardPicker() {
                 key={d.id}
                 onClick={() => editingId !== d.id && handleSelect(d.id)}
                 className={cn(
-                  "flex items-center gap-2 px-3 py-1.5 text-xs cursor-pointer transition-colors",
+                  "flex items-center gap-2 px-3 py-1.5 text-xs uppercase tracking-wider cursor-pointer transition-colors",
                   d.id === activeDashboardId
                     ? "text-zinc-100 bg-zinc-700/50"
                     : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700/30"
@@ -211,7 +211,7 @@ export function DashboardPicker() {
             ) : (
               <button
                 onClick={() => setCreatingNew(true)}
-                className="flex items-center gap-1.5 w-full px-3 py-2 text-xs text-zinc-500 hover:text-zinc-200 hover:bg-zinc-700/30 transition-colors"
+                className="flex items-center gap-1.5 w-full px-3 py-2 text-xs uppercase tracking-wider text-zinc-500 hover:text-zinc-200 hover:bg-zinc-700/30 transition-colors"
               >
                 <Plus className="h-3 w-3" />
                 New Dashboard

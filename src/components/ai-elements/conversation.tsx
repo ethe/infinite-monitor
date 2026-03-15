@@ -119,7 +119,7 @@ export function ConversationEmptyState({
     >
       {icon && <div className="text-zinc-500">{icon}</div>}
       <div className="space-y-1">
-        <p className="text-sm font-medium text-zinc-200">{title}</p>
+        <p className="text-sm font-medium text-zinc-200 uppercase tracking-wider">{title}</p>
         <p className="text-sm text-zinc-500">{description}</p>
       </div>
     </div>

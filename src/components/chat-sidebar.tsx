@@ -428,7 +428,7 @@ function useModelSelector() {
       />
       <button
         onClick={handleSaveKey}
-        className="px-2.5 py-1.5 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors"
+        className="px-2.5 py-1.5 text-xs uppercase tracking-wider bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors"
       >
         Save
       </button>
