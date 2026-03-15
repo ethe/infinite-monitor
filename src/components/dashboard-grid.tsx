@@ -117,9 +117,11 @@ function TemplateGallery() {
 }
 
 export function DashboardGrid() {
-  const [hydrated, setHydrated] = useState(() => useWidgetStore.persist.hasHydrated());
+  const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
     const unsub = useWidgetStore.persist.onFinishHydration(() => setHydrated(true));
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- needed for Zustand hydration check
+    if (useWidgetStore.persist.hasHydrated()) setHydrated(true);
     return unsub;
   }, []);
 
