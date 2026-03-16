@@ -44,6 +44,7 @@ import { cn } from "@/lib/utils";
 import { useWidgetStore, type WidgetMessage, type MessageAttachment } from "@/store/widget-store";
 import { useSettingsStore } from "@/store/settings-store";
 import { PROVIDERS, parseModelString, findProvider } from "@/lib/model-registry";
+import { SearchProviderPicker } from "@/components/search-provider-picker";
 
 interface PendingFile {
   id: string;
@@ -241,10 +242,19 @@ async function streamToWidget(
     const controller = new AbortController();
     abortControllers.set(widgetId, controller);
 
+    const { searchProvider, apiKeys: allKeys } = useSettingsStore.getState();
+    const searchApiKey = searchProvider ? allKeys[searchProvider] : undefined;
+
     const res = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages, widgetId, model, apiKey }),
+      body: JSON.stringify({
+        messages,
+        widgetId,
+        model,
+        apiKey,
+        ...(searchProvider && searchApiKey ? { searchProvider, searchApiKey } : {}),
+      }),
       signal: controller.signal,
     });
 
@@ -771,7 +781,10 @@ export function ChatSidebar() {
                     <span className="text-zinc-400">esc to interrupt</span>
                   </span>
                 ) : (
-                  modelTrigger
+                  <>
+                    {modelTrigger}
+                    <SearchProviderPicker disabled={isActiveStreaming} />
+                  </>
                 )}
               </div>
               <div className="flex items-center gap-1">

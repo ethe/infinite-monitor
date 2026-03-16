@@ -1,3 +1,5 @@
+import { scanUrl } from "@/lib/brin";
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const target = searchParams.get("url");
@@ -15,6 +17,23 @@ export async function GET(request: Request) {
 
   if (!["http:", "https:"].includes(parsed.protocol)) {
     return Response.json({ error: "only http/https allowed" }, { status: 400 });
+  }
+
+  try {
+    const scan = await scanUrl(target);
+    if (!scan.safe) {
+      return Response.json(
+        {
+          error: "blocked_by_security",
+          verdict: scan.verdict,
+          score: scan.score,
+          threats: scan.threats,
+        },
+        { status: 403 }
+      );
+    }
+  } catch {
+    // Allow request through if brin is unreachable
   }
 
   try {

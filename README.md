@@ -217,6 +217,17 @@ docker/
     └── template/          # Vite + React + Tailwind base
 ```
 
+## Security
+
+**Local-first storage** — All API keys (AI providers and search providers) are stored in your browser's localStorage. They are sent to the Next.js server only for the duration of a request and are never persisted server-side or sent to any third party.
+
+**Brin threat scanning** — Every external URL touched by the platform is scanned through [Brin](https://brin.sh) ([GitHub](https://github.com/superagent-ai/brin)), an open security API that scores domains and pages for threats. Brin runs in two places:
+
+- **Web search tool** — When the AI agent searches the web, all result URLs are scanned before they are returned to the model. Results with a score below 30 are filtered out.
+- **CORS proxy** — When widgets fetch external APIs through `/api/proxy`, the target URL is scanned before the request is forwarded. Requests to domains or pages scoring below 30 are blocked with a `403`.
+
+Both layers use `tolerance=lenient` and automatically route to Brin's `/domain/` endpoint for apex URLs or `/page/` endpoint for URLs with a path. Scan results are cached in-memory for 5 minutes to avoid redundant lookups.
+
 ## Contributing
 
 Contributions are welcome. Some areas that need work:

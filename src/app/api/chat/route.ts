@@ -1,5 +1,4 @@
 import { streamText, stepCountIs, tool } from "ai";
-import { anthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
 import { createModel, isAnthropicModel } from "@/lib/create-model";
 import { Bash } from "just-bash";
@@ -14,6 +13,8 @@ import {
   getWidget,
   getWidgetFiles,
 } from "@/db/widgets";
+import { webSearch, type SearchProvider } from "@/lib/web-search";
+import { scanUrls } from "@/lib/brin";
 
 const SYSTEM_PROMPT = `You are a coding agent that builds React widget components.
 
@@ -118,7 +119,14 @@ Keep the widget focused, clean, and production-quality.`;
 
 export async function POST(request: Request) {
   const body = await request.json();
-  const { messages, widgetId, model: modelStr, apiKey } = body as {
+  const {
+    messages,
+    widgetId,
+    model: modelStr,
+    apiKey,
+    searchProvider,
+    searchApiKey,
+  } = body as {
     messages: Array<{
       role: "user" | "assistant";
       content: string | Array<Record<string, unknown>>;
@@ -126,6 +134,8 @@ export async function POST(request: Request) {
     widgetId: string;
     model?: string;
     apiKey?: string;
+    searchProvider?: SearchProvider;
+    searchApiKey?: string;
   };
 
   if (!widgetId) {
@@ -222,8 +232,21 @@ export async function POST(request: Request) {
     readWidgetCode: readWidgetCodeTool,
   };
 
-  if (useAnthropic) {
-    tools.web_search = anthropic.tools.webSearch_20250305({ maxUses: 5 });
+  if (searchProvider && searchApiKey) {
+    tools.web_search = tool({
+      description:
+        "Search the web for current information. Use this when you need up-to-date data, documentation, or API references.",
+      inputSchema: z.object({
+        query: z.string().describe("The search query"),
+      }),
+      execute: async ({ query }) => {
+        const results = await webSearch(searchProvider, query, searchApiKey);
+        const scans = await scanUrls(results.map((r) => r.url));
+        return results
+          .map((r, i) => ({ ...r, brin: { score: scans[i].score, verdict: scans[i].verdict } }))
+          .filter((r) => r.brin.score >= 30);
+      },
+    });
   }
 
   const result = streamText({
