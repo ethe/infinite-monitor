@@ -147,25 +147,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Supported providers
 
-Infinite Monitor supports BYOK (Bring Your Own Key) for 15 providers. Enter your key in the chat sidebar or set the environment variable.
-
-| Provider | Environment Variable | Models |
-|----------|---------------------|--------|
-| Anthropic | `ANTHROPIC_API_KEY` | Claude Opus 4.6, Sonnet 4.6, Sonnet 4.5, Haiku 4.5 |
-| OpenAI | `OPENAI_API_KEY` | GPT-5.4, GPT-5.4 Pro, GPT-5, GPT-5 Mini, GPT-4.1 |
-| Google | `GOOGLE_GENERATIVE_AI_API_KEY` | Gemini 3.1 Pro, Gemini 3 Flash, Gemini 2.5 Pro |
-| xAI | `XAI_API_KEY` | Grok 4.20, Grok 4.1, Grok 4, Grok 3 |
-| Mistral | `MISTRAL_API_KEY` | Mistral Large, Magistral Medium, Mistral Small |
-| DeepSeek | `DEEPSEEK_API_KEY` | DeepSeek Chat, DeepSeek Reasoner |
-| Groq | `GROQ_API_KEY` | Llama 4 Scout, Llama 3.3 70B, DeepSeek R1 Distill |
-| Perplexity | `PERPLEXITY_API_KEY` | Sonar Pro, Sonar |
-| Cohere | `COHERE_API_KEY` | Command A, Command R+ |
-| Together AI | `TOGETHER_AI_API_KEY` | Llama 3.3 70B, Qwen 2.5 72B, DeepSeek V3 |
-| Fireworks | `FIREWORKS_API_KEY` | Kimi K2, DeepSeek R1, Llama 3.3 70B |
-| DeepInfra | `DEEPINFRA_API_KEY` | Llama 4 Maverick, Llama 3.3 70B |
-| Cerebras | `CEREBRAS_API_KEY` | Llama 3.3 70B, Qwen 3 32B |
-| Moonshot AI | `MOONSHOT_API_KEY` | Kimi K2.5, Kimi K2 Thinking |
-| Alibaba | `ALIBABA_API_KEY` | Qwen3 Max, Qwen Plus |
+Supports 15 AI providers including Anthropic, OpenAI, Google, xAI, Mistral, DeepSeek, Groq, and more. Enter your API key in the chat sidebar or set it via environment variables. See [`.env.example`](.env.example) for the full list.
 
 ## Tech stack
 
