@@ -6,13 +6,17 @@ All notable changes to Infinite Monitor are documented here.
 
 ### Added
 
-- Infinite canvas dashboard replacing the fixed grid layout — pan, zoom, and freely position widgets
-- BYOK (Bring Your Own Key) model selection with 12 providers and 35+ models
-- Inline model picker and GitHub star button in the UI
+- Infinite canvas dashboard replacing the fixed grid layout — pan, zoom, and freely position widgets ([#18](https://github.com/homanp/infinite-monitor/pull/18))
+- Interactive minimap showing widget positions and current viewport ([#19](https://github.com/homanp/infinite-monitor/pull/19))
+- Portable dashboard templates bundled as static JSON files ([#20](https://github.com/homanp/infinite-monitor/pull/20))
+- Auto fit-to-view after applying a template ([#20](https://github.com/homanp/infinite-monitor/pull/20))
+- `deps.json` support in widget bootstrap to install extra packages for template widgets ([#20](https://github.com/homanp/infinite-monitor/pull/20))
+- BYOK (Bring Your Own Key) model selection with 12 providers and 35+ models ([#17](https://github.com/homanp/infinite-monitor/pull/17))
+- Inline model picker and GitHub star button in the UI ([#17](https://github.com/homanp/infinite-monitor/pull/17))
 - Vitest unit test suite with CI test job
 - Cursor BugBot CI workflow to auto-review new pull requests
-- GitHub CI workflows (lint, typecheck, test), issue templates, and PR template
-- Pre-commit hooks via lint-staged
+- GitHub CI workflows (lint, typecheck, test), issue templates, and PR template ([#10](https://github.com/homanp/infinite-monitor/pull/10))
+- Pre-commit hooks via lint-staged ([#10](https://github.com/homanp/infinite-monitor/pull/10))
 
 ### Changed
 
@@ -21,6 +25,12 @@ All notable changes to Infinite Monitor are documented here.
 
 ### Fixed
 
+- Canvas zoom-to-cursor by removing 200 k px margin trick that broke coordinate math at non-1× zoom levels ([#19](https://github.com/homanp/infinite-monitor/pull/19))
+- Canvas panning using `data-canvas-bg`/`data-widget` attributes instead of strict target check ([#19](https://github.com/homanp/infinite-monitor/pull/19))
+- Stale closure in wheel handler by reading viewport from ref ([#19](https://github.com/homanp/infinite-monitor/pull/19))
+- Dot-grid background now drawn via CSS `background-position` ([#19](https://github.com/homanp/infinite-monitor/pull/19))
+- Manually arranged canvas layouts saved per template (Crypto Trader, World Conflicts, Prediction Markets) ([#20](https://github.com/homanp/infinite-monitor/pull/20))
+- Skip non-`src` files in bootstrap to prevent cascade failure ([#20](https://github.com/homanp/infinite-monitor/pull/20))
 - Zustand hydration pattern restored for SSR compatibility
 - Lint and type errors resolved for CI compliance
 - CI lockfile compatibility across platforms (Node 20 with `npm install`)
