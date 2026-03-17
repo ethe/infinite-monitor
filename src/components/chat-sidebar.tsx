@@ -242,8 +242,17 @@ async function streamToWidget(
     const controller = new AbortController();
     abortControllers.set(widgetId, controller);
 
-    const { searchProvider, apiKeys: allKeys } = useSettingsStore.getState();
+    const { searchProvider, apiKeys: allKeys, mcpServers } = useSettingsStore.getState();
     const searchApiKey = searchProvider ? allKeys[searchProvider] : undefined;
+
+    const enabledMcpServers = mcpServers
+      .filter((s) => s.enabled)
+      .map((s) => ({
+        url: s.url,
+        transportType: s.transportType,
+        headers: s.headers,
+        name: s.name,
+      }));
 
     const res = await fetch("/api/chat", {
       method: "POST",
@@ -254,6 +263,7 @@ async function streamToWidget(
         model,
         apiKey,
         ...(searchProvider && searchApiKey ? { searchProvider, searchApiKey } : {}),
+        ...(enabledMcpServers.length > 0 ? { mcpServers: enabledMcpServers } : {}),
       }),
       signal: controller.signal,
     });
@@ -328,6 +338,8 @@ async function streamToWidget(
               action = event.args?.query
                 ? `Searching "${event.args.query}"`
                 : "Searching the web";
+            } else {
+              action = `Using ${event.toolName}`;
             }
             if (action) setCurrentAction(widgetId, action);
           } else if (event.type === "abort") {
