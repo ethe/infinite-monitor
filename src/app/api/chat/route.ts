@@ -1,4 +1,5 @@
 import { streamText, stepCountIs, tool } from "ai";
+import { createMCPClient } from "@ai-sdk/mcp";
 import { z } from "zod";
 import { createModel, isAnthropicModel } from "@/lib/create-model";
 import { Bash } from "just-bash";
@@ -15,6 +16,16 @@ import {
 } from "@/db/widgets";
 import { webSearch, type SearchProvider } from "@/lib/web-search";
 import { scanUrls } from "@/lib/brin";
+
+interface McpServerPayload {
+  name: string;
+  type: "command" | "sse" | "streamableHttp";
+  url?: string;
+  command?: string;
+  args?: string[];
+  headers?: Record<string, string>;
+  env?: Record<string, string>;
+}
 
 const SYSTEM_PROMPT = `You are a coding agent that builds React widget components.
 
@@ -126,6 +137,7 @@ export async function POST(request: Request) {
     apiKey,
     searchProvider,
     searchApiKey,
+    mcpServers: mcpServerConfigs,
   } = body as {
     messages: Array<{
       role: "user" | "assistant";
@@ -136,6 +148,7 @@ export async function POST(request: Request) {
     apiKey?: string;
     searchProvider?: SearchProvider;
     searchApiKey?: string;
+    mcpServers?: McpServerPayload[];
   };
 
   if (!widgetId) {
@@ -249,6 +262,48 @@ export async function POST(request: Request) {
     });
   }
 
+  const mcpClients: Awaited<ReturnType<typeof createMCPClient>>[] = [];
+
+  if (mcpServerConfigs && mcpServerConfigs.length > 0) {
+    const results = await Promise.allSettled(
+      mcpServerConfigs.map(async (cfg) => {
+        let client: Awaited<ReturnType<typeof createMCPClient>>;
+
+        if (cfg.type === "command") {
+          const { Experimental_StdioMCPTransport } = await import("@ai-sdk/mcp/mcp-stdio");
+          client = await createMCPClient({
+            transport: new Experimental_StdioMCPTransport({
+              command: cfg.command!,
+              args: cfg.args ?? [],
+              env: { ...process.env, ...(cfg.env ?? {}) } as Record<string, string>,
+            }),
+          });
+        } else {
+          const transportType = cfg.type === "streamableHttp" ? "http" : "sse";
+          client = await createMCPClient({
+            transport: {
+              type: transportType,
+              url: cfg.url!,
+              headers: cfg.headers ?? {},
+            },
+          });
+        }
+
+        mcpClients.push(client);
+        const mcpTools = await client.tools();
+        return { name: cfg.name, tools: mcpTools };
+      })
+    );
+
+    for (const result of results) {
+      if (result.status === "fulfilled") {
+        Object.assign(tools, result.value.tools);
+      } else {
+        console.error("[MCP] Failed to connect:", result.reason);
+      }
+    }
+  }
+
   const result = streamText({
     model: createModel(selectedModel, apiKey),
     system: SYSTEM_PROMPT,
@@ -332,6 +387,12 @@ export async function POST(request: Request) {
                   toolName: "web_search",
                   args: { query: input?.query },
                 });
+              } else {
+                send({
+                  type: "tool-call",
+                  toolName: part.toolName,
+                  args: input ?? {},
+                });
               }
               break;
             }
@@ -353,6 +414,9 @@ export async function POST(request: Request) {
       } catch (err) {
         send({ type: "error", error: String(err) });
       } finally {
+        for (const client of mcpClients) {
+          client.close().catch(() => {});
+        }
         controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
         controller.close();
       }
