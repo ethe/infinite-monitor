@@ -49,8 +49,10 @@ jobs:
     needs: [typecheck, test]
     steps:
       - uses: actions/checkout@v4
-      - name: Deploy to Railway
-        uses: bervProject/railway-deploy@main
+      - uses: actions/setup-node@v4
         with:
-          railway_token: ${{ secrets.RAILWAY_TOKEN }}
-          service: ${{ secrets.RAILWAY_SERVICE_ID }}
+          node-version: 22
+      - name: Deploy to Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: npx --yes @railway/cli up --service "${{ secrets.RAILWAY_SERVICE_ID }}"
