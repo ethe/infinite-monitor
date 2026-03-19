@@ -22,7 +22,10 @@ export async function GET(
 
   const code = getWidgetCode(id);
   if (!code) {
-    return new Response("Widget not found", { status: 404 });
+    return new Response(LOADING_HTML, {
+      status: 200,
+      headers: { "Content-Type": "text/html; charset=utf-8" },
+    });
   }
 
   const widget = await ensureWidget(id);
