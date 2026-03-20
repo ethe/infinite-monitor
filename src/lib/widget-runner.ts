@@ -106,6 +106,8 @@ const SHADCN_COMPONENTS = "button card badge input table tabs scroll-area skelet
 
 // ── Shared base template (created once, copied into each sandbox) ──
 
+const PREBAKED_DIR = join(process.cwd(), ".cache", "widget-base-template");
+
 let baseTemplateDir: string | null = null;
 let baseTemplatePromise: Promise<string> | null = null;
 
@@ -116,7 +118,11 @@ async function ensureBaseTemplate(): Promise<string> {
   if (baseTemplatePromise) return baseTemplatePromise;
 
   baseTemplatePromise = (async () => {
-    const dir = join(tmpdir(), "widget-base-template");
+    // Prefer the pre-baked directory produced by scripts/prebuild-template.mjs
+    // during `npm run build`. Fall back to tmpdir for local dev.
+    const dir = existsSync(join(PREBAKED_DIR, "node_modules", ".package-lock.json"))
+      ? PREBAKED_DIR
+      : join(tmpdir(), "widget-base-template");
 
     if (existsSync(join(dir, "node_modules", ".package-lock.json"))) {
       baseTemplateDir = dir;
@@ -154,6 +160,13 @@ async function ensureBaseTemplate(): Promise<string> {
   } finally {
     baseTemplatePromise = null;
   }
+}
+
+/** Fire-and-forget warm-up — call from instrumentation.ts at server start. */
+export function warmBaseTemplate(): void {
+  ensureBaseTemplate().catch((err) =>
+    console.error("[secure-exec] Base template warm-up failed:", err),
+  );
 }
 
 // ── Security ──

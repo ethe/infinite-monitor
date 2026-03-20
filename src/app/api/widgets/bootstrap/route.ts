@@ -2,7 +2,7 @@ import { upsertWidget } from "@/db/widgets";
 import {
   writeWidgetFile,
   addWidgetDependencies,
-  rebuildWidget,
+  buildWidget,
 } from "@/lib/widget-runner";
 
 export async function POST(request: Request) {
@@ -37,8 +37,16 @@ export async function POST(request: Request) {
         await writeWidgetFile(w.id, path, content);
       } catch {}
     }
+  }
 
-    rebuildWidget(w.id).catch(console.error);
+  // Build widgets sequentially to avoid resource contention on
+  // memory-constrained hosts (e.g. Railway).
+  for (const w of widgets) {
+    try {
+      await buildWidget(w.id);
+    } catch (err) {
+      console.error(`[bootstrap] build failed for ${w.id}:`, err);
+    }
   }
 
   return Response.json({ ok: true, count: widgets.length });
