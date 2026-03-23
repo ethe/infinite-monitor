@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 import { getDashboardByWidgetId, getWidget } from "@/db/widgets";
-import { lookupPublishedDashboardSnapshot } from "@/lib/publish-dashboard";
 import {
   getOptionalRiverrunClient,
   getRequiredRiverrunClient,
@@ -46,7 +45,7 @@ export type PublishedTraceBootstrapResult =
       message: string;
     };
 
-export interface PublishedTraceRecorder {
+export interface SharedTraceRecorder {
   shareId: string;
   publishedWidgetId: string;
   widgetTitle: string;
@@ -120,7 +119,7 @@ async function readCurrentPublishedDashboardTrace(shareId: string) {
   }
 
   if (!isPublishedDashboardTraceV1(snapshot)) {
-    throw new Error("Published trace snapshot is invalid");
+    throw new Error("Shared trace snapshot is invalid");
   }
 
   return normalizePublishedDashboardTrace(snapshot);
@@ -152,12 +151,6 @@ export async function lookupPublishedDashboardTrace(
   shareId: string,
 ): Promise<PublishedTraceLookupResult> {
   const riverrun = getOptionalRiverrunClient();
-  if (!riverrun) {
-    return {
-      status: "backend_unavailable",
-      message: "RIVERRUN_BASE_URL is not configured",
-    };
-  }
 
   try {
     const snapshot = await riverrun.getLatestSnapshot<unknown>(
@@ -175,7 +168,7 @@ export async function lookupPublishedDashboardTrace(
     if (!isPublishedDashboardTraceV1(snapshot)) {
       return {
         status: "backend_unavailable",
-        message: "Published trace snapshot is invalid",
+        message: "Shared trace snapshot is invalid",
       };
     }
 
@@ -195,12 +188,6 @@ export async function bootstrapPublishedDashboardTrace(
   shareId: string,
 ): Promise<PublishedTraceBootstrapResult> {
   const riverrun = getOptionalRiverrunClient();
-  if (!riverrun) {
-    return {
-      status: "backend_unavailable",
-      message: "RIVERRUN_BASE_URL is not configured",
-    };
-  }
 
   try {
     const bootstrap = await riverrun.bootstrap(
@@ -231,14 +218,14 @@ export async function bootstrapPublishedDashboardTrace(
       } catch {
         return {
           status: "backend_unavailable",
-          message: "Published trace bootstrap snapshot is invalid JSON",
+          message: "Shared trace bootstrap snapshot is invalid JSON",
         };
       }
 
       if (!isPublishedDashboardTraceV1(parsedSnapshot)) {
         return {
           status: "backend_unavailable",
-          message: "Published trace bootstrap snapshot is invalid",
+          message: "Shared trace bootstrap snapshot is invalid",
         };
       }
 
@@ -261,14 +248,14 @@ export async function bootstrapPublishedDashboardTrace(
       } catch {
         return {
           status: "backend_unavailable",
-          message: "Published trace bootstrap update is invalid JSON",
+          message: "Shared trace bootstrap update is invalid JSON",
         };
       }
 
       if (!isPublishedTraceEventV1(parsedEvent)) {
         return {
           status: "backend_unavailable",
-          message: "Published trace bootstrap update is invalid",
+          message: "Shared trace bootstrap update is invalid",
         };
       }
 
@@ -357,9 +344,9 @@ export async function appendPublishedTraceEvents(events: PublishedTraceEventV1[]
   return writeTask;
 }
 
-export async function maybeCreatePublishedTraceRecorder(
+export async function maybeCreateSharedTraceRecorder(
   widgetId: string,
-): Promise<PublishedTraceRecorder | null> {
+): Promise<SharedTraceRecorder | null> {
   const widget = getWidget(widgetId);
   if (!widget) {
     return null;
@@ -371,11 +358,6 @@ export async function maybeCreatePublishedTraceRecorder(
   }
 
   const shareId = deriveShareId(dashboard.id);
-  const publishedSnapshot = await lookupPublishedDashboardSnapshot(shareId);
-  if (publishedSnapshot.status !== "ready") {
-    return null;
-  }
-
   await ensurePublishedTraceStream(shareId);
 
   const publishedWidgetId = getPublishedWidgetId(shareId, widgetId);

@@ -1,3 +1,8 @@
+import {
+  isCanvasViewportSnapshot,
+  type CanvasViewportSnapshot,
+} from "@/lib/canvas-viewport";
+
 export interface PublishedCanvasLayout {
   x: number;
   y: number;
@@ -15,20 +20,32 @@ export interface PublishedTextBlockSnapshotV1 {
 export interface PublishedWidgetSnapshotV1 {
   sourceWidgetId: string;
   publishedWidgetId: string;
+  revision: string;
   title: string;
   description: string;
   layout: PublishedCanvasLayout;
   files: Record<string, string>;
 }
 
-export interface PublishedDashboardSnapshotV1 {
+export interface DashboardSharedStateV1 {
   version: "v1";
   shareId: string;
   dashboardId: string;
   title: string;
-  publishedAt: string;
+  updatedAt: string;
+  viewport?: CanvasViewportSnapshot | null;
   textBlocks: PublishedTextBlockSnapshotV1[];
   widgets: PublishedWidgetSnapshotV1[];
+}
+
+export interface DashboardLiveEventV1 {
+  version: "v1";
+  kind: "dashboard-state";
+  shareId: string;
+  dashboardId: string;
+  at: string;
+  stateHash: string;
+  state: DashboardSharedStateV1;
 }
 
 export type PublishedTraceEventKind =
@@ -109,9 +126,9 @@ export function isPublishedTraceEventV1(value: unknown): value is PublishedTrace
   );
 }
 
-export function isPublishedDashboardSnapshotV1(
+export function isDashboardSharedStateV1(
   value: unknown,
-): value is PublishedDashboardSnapshotV1 {
+): value is DashboardSharedStateV1 {
   if (!value || typeof value !== "object") {
     return false;
   }
@@ -122,7 +139,10 @@ export function isPublishedDashboardSnapshotV1(
     || typeof candidate.shareId !== "string"
     || typeof candidate.dashboardId !== "string"
     || typeof candidate.title !== "string"
-    || typeof candidate.publishedAt !== "string"
+    || typeof candidate.updatedAt !== "string"
+    || (candidate.viewport !== undefined
+      && candidate.viewport !== null
+      && !isCanvasViewportSnapshot(candidate.viewport))
     || !Array.isArray(candidate.textBlocks)
     || !Array.isArray(candidate.widgets)
   ) {
@@ -156,12 +176,30 @@ export function isPublishedDashboardSnapshotV1(
     return (
       typeof publishedWidget.sourceWidgetId === "string"
       && typeof publishedWidget.publishedWidgetId === "string"
+      && typeof publishedWidget.revision === "string"
       && typeof publishedWidget.title === "string"
       && typeof publishedWidget.description === "string"
       && isCanvasLayout(publishedWidget.layout)
       && isStringRecord(publishedWidget.files)
     );
   });
+}
+
+export function isDashboardLiveEventV1(value: unknown): value is DashboardLiveEventV1 {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as Record<string, unknown>;
+  return (
+    candidate.version === "v1"
+    && candidate.kind === "dashboard-state"
+    && typeof candidate.shareId === "string"
+    && typeof candidate.dashboardId === "string"
+    && typeof candidate.at === "string"
+    && typeof candidate.stateHash === "string"
+    && isDashboardSharedStateV1(candidate.state)
+  );
 }
 
 export function isPublishedDashboardTraceV1(

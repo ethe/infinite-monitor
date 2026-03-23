@@ -11,16 +11,20 @@ import {
   MARGIN,
 } from "@/components/infinite-canvas";
 import { ZoomControls } from "@/components/zoom-controls";
+import { DEFAULT_CANVAS_VIEWPORT } from "@/lib/canvas-viewport";
 import type {
+  DashboardSharedStateV1,
   PublishedCanvasLayout,
-  PublishedDashboardSnapshotV1,
   PublishedTextBlockSnapshotV1,
   PublishedWidgetSnapshotV1,
 } from "@/lib/share-types";
 
-const DEFAULT_VIEWPORT = { panX: 24, panY: 60, zoom: 1 };
+type SharedDashboardRenderable = Pick<
+  DashboardSharedStateV1,
+  "shareId" | "title" | "updatedAt" | "viewport" | "widgets" | "textBlocks"
+>;
 
-function formatPublishedAt(value: string) {
+function formatTimestamp(value: string) {
   return value.replace(".000Z", "Z").replace("T", " ");
 }
 
@@ -46,7 +50,7 @@ function fitViewport(
   height: number,
 ) {
   if (items.length === 0 || width === 0 || height === 0) {
-    return DEFAULT_VIEWPORT;
+    return DEFAULT_CANVAS_VIEWPORT;
   }
 
   const stepX = CELL_W + MARGIN;
@@ -94,7 +98,7 @@ function PublishedWidgetCard({
 }) {
   const pixelWidth = gridWidth(widget.layout.w);
   const pixelHeight = gridHeight(widget.layout.h);
-  const iframeSrc = `/api/widget/${widget.publishedWidgetId}/`;
+  const iframeSrc = `/api/widget/${widget.publishedWidgetId}/?rev=${encodeURIComponent(widget.revision)}`;
   const hasApp = Boolean(widget.files["src/App.tsx"]);
 
   return (
@@ -125,7 +129,7 @@ function PublishedWidgetCard({
         ) : (
           <CardContent className="flex-1 overflow-auto p-3">
             <p className="text-xs leading-relaxed text-zinc-400">
-              {widget.description || "This widget does not have a published app yet."}
+              {widget.description || "This widget does not have a shared app bundle yet."}
             </p>
           </CardContent>
         )}
@@ -155,9 +159,9 @@ function PublishedTextBlock({ textBlock }: { textBlock: PublishedTextBlockSnapsh
 }
 
 export function SharedDashboardView({
-  snapshot,
+  dashboard,
 }: {
-  snapshot: PublishedDashboardSnapshotV1;
+  dashboard: SharedDashboardRenderable;
 }) {
   const [activeReplayWidgetId, setActiveReplayWidgetId] = useState<string | null>(null);
   const [manualViewport, setManualViewport] = useState<{
@@ -169,10 +173,11 @@ export function SharedDashboardView({
   const containerRef = useRef<HTMLDivElement>(null);
 
   const canvasItems = useMemo(
-    () => [...snapshot.widgets, ...snapshot.textBlocks],
-    [snapshot.textBlocks, snapshot.widgets],
+    () => [...dashboard.widgets, ...dashboard.textBlocks],
+    [dashboard.textBlocks, dashboard.widgets],
   );
   const viewport = manualViewport
+    ?? dashboard.viewport
     ?? fitViewport(canvasItems, containerSize.width, containerSize.height);
 
   useEffect(() => {
@@ -205,18 +210,20 @@ export function SharedDashboardView({
             Shared Dashboard
           </div>
           <h1 className="truncate text-sm font-medium uppercase tracking-[0.18em] text-zinc-100">
-            {snapshot.title}
+            {dashboard.title}
           </h1>
         </div>
         <div className="flex items-center gap-3 text-[11px] uppercase tracking-[0.18em] text-zinc-500">
           <span className="inline-flex items-center gap-1.5">
             <Eye className="h-3.5 w-3.5" />
-            Read only
+            Live sync
           </span>
-          <span className="inline-flex items-center gap-1.5">
-            <CalendarClock className="h-3.5 w-3.5" />
-            {formatPublishedAt(snapshot.publishedAt)}
-          </span>
+          {dashboard.updatedAt && (
+            <span className="inline-flex items-center gap-1.5">
+              <CalendarClock className="h-3.5 w-3.5" />
+              {formatTimestamp(dashboard.updatedAt)}
+            </span>
+          )}
         </div>
       </header>
 
@@ -224,7 +231,7 @@ export function SharedDashboardView({
         <div ref={containerRef} className="relative min-h-0 flex-1 overflow-hidden">
           {canvasItems.length === 0 ? (
             <div className="flex h-full items-center justify-center px-6 text-center text-sm text-zinc-500">
-              No published items in this dashboard snapshot.
+              No live items in this shared dashboard yet.
             </div>
           ) : (
             <>
@@ -234,14 +241,14 @@ export function SharedDashboardView({
                 zoom={viewport.zoom}
                 onViewportChange={(panX, panY, zoom) => setManualViewport({ panX, panY, zoom })}
               >
-                {snapshot.widgets.map((widget) => (
+                {dashboard.widgets.map((widget) => (
                   <PublishedWidgetCard
-                    key={widget.publishedWidgetId}
+                    key={`${widget.publishedWidgetId}:${widget.revision}`}
                     widget={widget}
                     active={activeReplayWidgetId === widget.publishedWidgetId}
                   />
                 ))}
-                {snapshot.textBlocks.map((textBlock) => (
+                {dashboard.textBlocks.map((textBlock) => (
                   <PublishedTextBlock key={textBlock.id} textBlock={textBlock} />
                 ))}
               </InfiniteCanvas>
@@ -251,15 +258,15 @@ export function SharedDashboardView({
                 panY={viewport.panY}
                 containerWidth={containerSize.width}
                 containerHeight={containerSize.height}
-                widgets={snapshot.widgets}
-                textBlocks={snapshot.textBlocks}
+                widgets={dashboard.widgets}
+                textBlocks={dashboard.textBlocks}
                 onViewportChange={(panX, panY, zoom) => setManualViewport({ panX, panY, zoom })}
               />
             </>
           )}
         </div>
         <SharedTracePanel
-          shareId={snapshot.shareId}
+          shareId={dashboard.shareId}
           onActiveWidgetChange={setActiveReplayWidgetId}
         />
       </div>

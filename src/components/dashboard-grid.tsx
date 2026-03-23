@@ -11,6 +11,7 @@ import { AddMenu } from "@/components/add-menu";
 import { CELL_W, CELL_H, MARGIN, InfiniteCanvas } from "@/components/infinite-canvas";
 import { DraggableWidget } from "@/components/draggable-widget";
 import { ZoomControls } from "@/components/zoom-controls";
+import { DEFAULT_CANVAS_VIEWPORT } from "@/lib/canvas-viewport";
 import type { CanvasLayout } from "@/store/widget-store";
 
 interface Template {
@@ -197,11 +198,9 @@ export function DashboardGrid() {
     return allTextBlocks.filter((tb) => (activeDashboard.textBlockIds ?? []).includes(tb.id));
   }, [allTextBlocks, activeDashboard]);
 
-  const DEFAULT_VIEWPORT = { panX: 24, panY: 60, zoom: 1 };
-
   const viewport = activeDashboardId
-    ? viewports[activeDashboardId] ?? DEFAULT_VIEWPORT
-    : DEFAULT_VIEWPORT;
+    ? viewports[activeDashboardId] ?? DEFAULT_CANVAS_VIEWPORT
+    : DEFAULT_CANVAS_VIEWPORT;
 
   const handleViewportChange = useCallback(
     (panX: number, panY: number, zoom: number) => {

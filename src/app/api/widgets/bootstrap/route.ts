@@ -2,8 +2,9 @@ import { upsertWidget } from "@/db/widgets";
 import {
   writeWidgetFile,
   addWidgetDependencies,
-  buildWidget,
+  rebuildWidget,
 } from "@/lib/widget-runner";
+import { scheduleLiveDashboardAppendForWidget } from "@/lib/publish-dashboard";
 
 export async function POST(request: Request) {
   const { widgets } = (await request.json()) as {
@@ -39,15 +40,14 @@ export async function POST(request: Request) {
     }
   }
 
-  // Build widgets sequentially to avoid resource contention on
-  // memory-constrained hosts (e.g. Railway).
+  // Queue builds in the background and return immediately so template
+  // application does not hold an open request while multiple widgets compile.
   for (const w of widgets) {
-    try {
-      await buildWidget(w.id);
-    } catch (err) {
+    rebuildWidget(w.id).catch((err) => {
       console.error(`[bootstrap] build failed for ${w.id}:`, err);
-    }
+    });
+    scheduleLiveDashboardAppendForWidget(w.id, 0);
   }
 
-  return Response.json({ ok: true, count: widgets.length });
+  return Response.json({ ok: true, count: widgets.length, queued: true });
 }

@@ -5,6 +5,7 @@ import {
   lookupPublishedDashboardTrace,
   mergePublishedTraceEvents,
 } from "@/lib/share-trace";
+import { DEFAULT_RIVERRUN_BASE_URL } from "@/lib/riverrun";
 
 const ORIGINAL_RIVERRUN_BASE_URL = process.env.RIVERRUN_BASE_URL;
 const BOOTSTRAP_BOUNDARY = "rr-bootstrap-test";
@@ -74,16 +75,28 @@ describe("mergePublishedTraceEvents", () => {
 });
 
 describe("lookupPublishedDashboardTrace", () => {
-  it("reports backend_unavailable when riverrun is not configured", async () => {
+  it("falls back to the default riverrun base url when env is not configured", async () => {
     delete process.env.RIVERRUN_BASE_URL;
+    const fetchMock = vi.fn().mockResolvedValue(new Response("", { status: 404 }));
+    vi.stubGlobal("fetch", fetchMock);
 
     await expect(lookupPublishedDashboardTrace("shr_test")).resolves.toEqual({
-      status: "backend_unavailable",
-      message: "RIVERRUN_BASE_URL is not configured",
+      status: "ready",
+      trace: {
+        version: "v1",
+        shareId: "shr_test",
+        updatedAt: expect.any(String),
+        nextOffset: null,
+        events: [],
+      },
     });
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      `${DEFAULT_RIVERRUN_BASE_URL}/ds/im-share/shr_test.trace/snapshot`,
+    );
   });
 
-  it("returns an empty trace when the stream has no published snapshot yet", async () => {
+  it("returns an empty trace when the stream has no snapshot yet", async () => {
     process.env.RIVERRUN_BASE_URL = "https://riverrun.test";
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
       new Response("", { status: 404 }),
@@ -101,7 +114,7 @@ describe("lookupPublishedDashboardTrace", () => {
     });
   });
 
-  it("returns a valid published trace snapshot", async () => {
+  it("returns a valid shared trace snapshot", async () => {
     process.env.RIVERRUN_BASE_URL = "https://riverrun.test";
 
     const trace = {
@@ -148,7 +161,7 @@ describe("lookupPublishedDashboardTrace", () => {
 
     await expect(lookupPublishedDashboardTrace("shr_test")).resolves.toEqual({
       status: "backend_unavailable",
-      message: "Published trace snapshot is invalid",
+      message: "Shared trace snapshot is invalid",
     });
   });
 });

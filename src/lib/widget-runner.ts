@@ -48,6 +48,7 @@ interface WidgetSandbox {
 const widgetSandboxes = new Map<string, WidgetSandbox>();
 const widgetStatuses = new Map<string, WidgetStatus>();
 const buildLocks = new Map<string, Promise<void>>();
+let globalBuildQueue: Promise<void> = Promise.resolve();
 
 // ── Command executor: bridges SecureExec child_process to host ──
 
@@ -381,14 +382,35 @@ async function doBuild(widgetId: string): Promise<void> {
   }
 }
 
+function queueGlobalBuild(task: () => Promise<void>) {
+  const nextTask = globalBuildQueue
+    .catch(() => {})
+    .then(task);
+
+  globalBuildQueue = nextTask.then(
+    () => undefined,
+    () => undefined,
+  );
+
+  return nextTask;
+}
+
 // ── Public API ──
 
 export async function buildWidget(widgetId: string): Promise<void> {
   const existing = buildLocks.get(widgetId);
-  if (existing) await existing;
-  const promise = doBuild(widgetId);
+  if (existing) {
+    await existing;
+    return;
+  }
+
+  const promise = queueGlobalBuild(() => doBuild(widgetId));
   buildLocks.set(widgetId, promise);
-  try { await promise; } finally { buildLocks.delete(widgetId); }
+  try {
+    await promise;
+  } finally {
+    buildLocks.delete(widgetId);
+  }
 }
 
 const BUILD_TIMEOUT_MS = 120_000;

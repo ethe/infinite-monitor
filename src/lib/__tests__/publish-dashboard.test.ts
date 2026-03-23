@@ -1,10 +1,19 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  buildPublishedDashboardSnapshot,
-  lookupPublishedDashboardSnapshot,
+  bootstrapLiveDashboardState,
+  buildDashboardStateContentHash,
+  buildDashboardSharedState,
 } from "@/lib/publish-dashboard";
+import { DEFAULT_RIVERRUN_BASE_URL } from "@/lib/riverrun";
 
 const ORIGINAL_RIVERRUN_BASE_URL = process.env.RIVERRUN_BASE_URL;
+const BOOTSTRAP_BOUNDARY = "rr-dashboard-bootstrap";
+
+function buildBootstrapBody(parts: string[]) {
+  return `${parts
+    .map((part) => `--${BOOTSTRAP_BOUNDARY}\r\n${part}\r\n`)
+    .join("")}--${BOOTSTRAP_BOUNDARY}--\r\n`;
+}
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -16,12 +25,13 @@ afterEach(() => {
   }
 });
 
-describe("buildPublishedDashboardSnapshot", () => {
-  it("builds a sanitized snapshot without widget messages", () => {
-    const snapshot = buildPublishedDashboardSnapshot(
+describe("buildDashboardSharedState", () => {
+  it("builds a sanitized live state without widget messages", () => {
+    const state = buildDashboardSharedState(
       {
         dashboardId: "dash-1",
         title: "Markets",
+        viewport: { panX: 24, panY: 60, zoom: 1 },
         textBlocks: [
           {
             id: "text-1",
@@ -34,7 +44,7 @@ describe("buildPublishedDashboardSnapshot", () => {
           {
             id: "widget-1",
             title: "Widget One",
-            description: "Shows published output",
+            description: "Shows shared output",
             layout: { x: 1, y: 2, w: 4, h: 3 },
             files: {
               "src/App.tsx": "export default function App() { return null; }",
@@ -54,12 +64,13 @@ describe("buildPublishedDashboardSnapshot", () => {
       "2026-03-22T12:34:56.000Z",
     );
 
-    expect(snapshot).toEqual({
+    expect(state).toEqual({
       version: "v1",
       shareId: "shr_test",
       dashboardId: "dash-1",
       title: "Markets",
-      publishedAt: "2026-03-22T12:34:56.000Z",
+      updatedAt: "2026-03-22T12:34:56.000Z",
+      viewport: { panX: 24, panY: 60, zoom: 1 },
       textBlocks: [
         {
           id: "text-1",
@@ -72,8 +83,9 @@ describe("buildPublishedDashboardSnapshot", () => {
         {
           sourceWidgetId: "widget-1",
           publishedWidgetId: "share--shr_test--widget-1",
+          revision: expect.any(String),
           title: "Widget One",
-          description: "Shows published output",
+          description: "Shows shared output",
           layout: { x: 1, y: 2, w: 4, h: 3 },
           files: {
             "src/App.tsx": "export default function App() { return null; }",
@@ -83,32 +95,62 @@ describe("buildPublishedDashboardSnapshot", () => {
       ],
     });
 
-    expect("messages" in snapshot.widgets[0]).toBe(false);
+    expect("messages" in state.widgets[0]).toBe(false);
+  });
+
+  it("ignores updatedAt when hashing equivalent live state content", () => {
+    const source = {
+      dashboardId: "dash-1",
+      title: "Markets",
+      viewport: { panX: 24, panY: 60, zoom: 1 },
+      textBlocks: [],
+      widgets: [
+        {
+          id: "widget-1",
+          title: "Widget One",
+          description: "Shows shared output",
+          layout: { x: 1, y: 2, w: 4, h: 3 },
+          files: {
+            "src/components/Chart.tsx": "export function Chart() { return null; }",
+            "src/App.tsx": "export default function App() { return null; }",
+          },
+        },
+      ],
+    };
+
+    const firstState = buildDashboardSharedState(
+      source,
+      "shr_test",
+      "2026-03-22T12:34:56.000Z",
+    );
+    const secondState = buildDashboardSharedState(
+      source,
+      "shr_test",
+      "2026-03-22T12:35:56.000Z",
+    );
+
+    expect(buildDashboardStateContentHash(firstState)).toBe(
+      buildDashboardStateContentHash(secondState),
+    );
   });
 });
 
-describe("lookupPublishedDashboardSnapshot", () => {
-  it("reports backend_unavailable when riverrun is not configured", async () => {
+describe("bootstrapLiveDashboardState", () => {
+  it("falls back to the default riverrun base url when env is not configured", async () => {
     delete process.env.RIVERRUN_BASE_URL;
+    const fetchMock = vi.fn().mockResolvedValue(new Response("", { status: 404 }));
+    vi.stubGlobal("fetch", fetchMock);
 
-    await expect(lookupPublishedDashboardSnapshot("shr_test")).resolves.toEqual({
-      status: "backend_unavailable",
-      message: "RIVERRUN_BASE_URL is not configured",
+    await expect(bootstrapLiveDashboardState("shr_test")).resolves.toEqual({
+      status: "unavailable",
     });
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      `${DEFAULT_RIVERRUN_BASE_URL}/ds/im-share/shr_test.dashboard/bootstrap`,
+    );
   });
 
-  it("reports unpublished when the snapshot stream does not exist", async () => {
-    process.env.RIVERRUN_BASE_URL = "https://riverrun.test";
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
-      new Response("", { status: 404 }),
-    ));
-
-    await expect(lookupPublishedDashboardSnapshot("shr_test")).resolves.toEqual({
-      status: "unpublished",
-    });
-  });
-
-  it("returns the snapshot when riverrun has a valid published payload", async () => {
+  it("builds current live state from snapshot plus retained updates", async () => {
     process.env.RIVERRUN_BASE_URL = "https://riverrun.test";
 
     const snapshot = {
@@ -116,37 +158,53 @@ describe("lookupPublishedDashboardSnapshot", () => {
       shareId: "shr_test",
       dashboardId: "dash-1",
       title: "Markets",
-      publishedAt: "2026-03-22T12:34:56.000Z",
+      updatedAt: "2026-03-22T12:34:56.000Z",
+      viewport: { panX: 12, panY: 18, zoom: 1 },
       textBlocks: [],
       widgets: [],
     };
 
+    const liveEvent = {
+      version: "v1" as const,
+      kind: "dashboard-state" as const,
+      shareId: "shr_test",
+      dashboardId: "dash-1",
+      at: "2026-03-22T12:35:10.000Z",
+      stateHash: "hash-1",
+      state: {
+        version: "v1" as const,
+        shareId: "shr_test",
+        dashboardId: "dash-1",
+        title: "Markets Live",
+        updatedAt: "2026-03-22T12:35:10.000Z",
+        viewport: { panX: 30, panY: 40, zoom: 1.2 },
+        textBlocks: [],
+        widgets: [],
+      },
+    };
+
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
-      new Response(JSON.stringify(snapshot), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }),
+      new Response(
+        buildBootstrapBody([
+          `Content-Type: application/json\r\n\r\n${JSON.stringify(snapshot)}`,
+          `Content-Type: application/json\r\n\r\n${JSON.stringify(liveEvent)}`,
+        ]),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": `multipart/mixed; boundary=${BOOTSTRAP_BOUNDARY}`,
+            "Stream-Snapshot-Offset": "12",
+            "Stream-Next-Offset": "42",
+            "Stream-Up-To-Date": "true",
+          },
+        },
+      ),
     ));
 
-    await expect(lookupPublishedDashboardSnapshot("shr_test")).resolves.toEqual({
+    await expect(bootstrapLiveDashboardState("shr_test")).resolves.toEqual({
       status: "ready",
-      snapshot,
-    });
-  });
-
-  it("reports backend_unavailable when riverrun returns an invalid snapshot", async () => {
-    process.env.RIVERRUN_BASE_URL = "https://riverrun.test";
-
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ version: "v1", shareId: "shr_test" }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }),
-    ));
-
-    await expect(lookupPublishedDashboardSnapshot("shr_test")).resolves.toEqual({
-      status: "backend_unavailable",
-      message: "Published snapshot is invalid",
+      state: liveEvent.state,
+      nextOffset: "42",
     });
   });
 });

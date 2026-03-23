@@ -318,7 +318,7 @@ export function SharedTracePanel({
               <Waypoints className="h-5 w-5 text-zinc-500" />
               <div className="text-sm text-zinc-200">No replay events yet</div>
               <p className="text-xs leading-relaxed text-zinc-500">
-                Trace replay appears here after a published dashboard runs new widget generation work.
+                Trace replay appears here after this shared dashboard runs new widget generation work.
               </p>
             </div>
           ) : (

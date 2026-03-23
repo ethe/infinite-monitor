@@ -1,10 +1,11 @@
 import { useWidgetStore } from "@/store/widget-store";
+import { DEFAULT_CANVAS_VIEWPORT } from "@/lib/canvas-viewport";
 
 let syncTimeout: ReturnType<typeof setTimeout> | null = null;
 let pendingSync: Promise<void> | null = null;
 
 export function buildSyncPayload() {
-  const { dashboards, widgets, textBlocks } = useWidgetStore.getState();
+  const { dashboards, widgets, textBlocks, viewports } = useWidgetStore.getState();
 
   return {
     dashboards: dashboards.map((dashboard) => ({
@@ -13,6 +14,7 @@ export function buildSyncPayload() {
       widgetIds: dashboard.widgetIds,
       textBlockIds: dashboard.textBlockIds ?? [],
       createdAt: dashboard.createdAt,
+      viewport: viewports[dashboard.id] ?? DEFAULT_CANVAS_VIEWPORT,
     })),
     widgets: widgets.map((widget) => ({
       id: widget.id,

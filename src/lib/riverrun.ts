@@ -20,6 +20,8 @@ export interface RiverrunBootstrapResult {
   parts: RiverrunBootstrapPart[];
 }
 
+export const DEFAULT_RIVERRUN_BASE_URL = "https://stream.tonbo.dev";
+
 function trimTrailingSlash(value: string) {
   return value.replace(/\/+$/, "");
 }
@@ -284,18 +286,14 @@ export function createRiverrunClient(baseUrl: string) {
   };
 }
 
+export function getRiverrunBaseUrl() {
+  return process.env.RIVERRUN_BASE_URL?.trim() || DEFAULT_RIVERRUN_BASE_URL;
+}
+
 export function getOptionalRiverrunClient() {
-  const baseUrl = process.env.RIVERRUN_BASE_URL;
-  if (!baseUrl) {
-    return null;
-  }
-  return createRiverrunClient(baseUrl);
+  return createRiverrunClient(getRiverrunBaseUrl());
 }
 
 export function getRequiredRiverrunClient() {
-  const client = getOptionalRiverrunClient();
-  if (!client) {
-    throw new Error("RIVERRUN_BASE_URL is not configured");
-  }
-  return client;
+  return getOptionalRiverrunClient();
 }

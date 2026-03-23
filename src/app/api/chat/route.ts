@@ -17,7 +17,8 @@ import {
 } from "@/db/widgets";
 import { webSearch, type SearchProvider } from "@/lib/web-search";
 import { scanUrls } from "@/lib/brin";
-import { maybeCreatePublishedTraceRecorder } from "@/lib/share-trace";
+import { maybeCreateSharedTraceRecorder } from "@/lib/share-trace";
+import { scheduleLiveDashboardAppendForWidget } from "@/lib/publish-dashboard";
 
 interface McpServerPayload {
   name: string;
@@ -237,7 +238,7 @@ export async function POST(request: Request) {
 
   const selectedModel = modelStr ?? "anthropic:claude-sonnet-4-6";
   const useAnthropic = isAnthropicModel(selectedModel);
-  const traceRecorder = await maybeCreatePublishedTraceRecorder(widgetId).catch((err) => {
+  const traceRecorder = await maybeCreateSharedTraceRecorder(widgetId).catch((err) => {
     console.error("[share-trace] Failed to initialize recorder:", err);
     return null;
   });
@@ -282,6 +283,8 @@ export async function POST(request: Request) {
           rebuildWidget(widgetId).catch(console.error);
         }
       }
+
+      scheduleLiveDashboardAppendForWidget(widgetId);
     },
   };
 

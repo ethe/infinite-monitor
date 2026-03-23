@@ -1,4 +1,5 @@
 import { syncState, getFullState } from "@/db/widgets";
+import { scheduleLiveDashboardAppend } from "@/lib/publish-dashboard";
 
 export async function GET() {
   const state = getFullState();
@@ -8,7 +9,14 @@ export async function GET() {
 export async function POST(request: Request) {
   const body = await request.json();
   const { dashboards, widgets, textBlocks } = body as {
-    dashboards: Array<{ id: string; title: string; widgetIds: string[]; textBlockIds?: string[]; createdAt: number }>;
+    dashboards: Array<{
+      id: string;
+      title: string;
+      widgetIds: string[];
+      textBlockIds?: string[];
+      createdAt: number;
+      viewport?: unknown;
+    }>;
     widgets: Array<{
       id: string;
       title: string;
@@ -27,5 +35,10 @@ export async function POST(request: Request) {
   };
 
   syncState({ dashboards: dashboards ?? [], widgets: widgets ?? [], textBlocks: textBlocks ?? [] });
+
+  for (const dashboard of dashboards ?? []) {
+    scheduleLiveDashboardAppend(dashboard.id, 0);
+  }
+
   return Response.json({ ok: true });
 }

@@ -18,8 +18,8 @@ export function deriveShareId(dashboardId: string, explicitSecret?: string) {
   return `shr_${digest.slice(0, 22)}`;
 }
 
-export function getSnapshotStreamId(shareId: string) {
-  return `${shareId}.snapshot`;
+export function getDashboardStreamId(shareId: string) {
+  return `${shareId}.dashboard`;
 }
 
 export function getTraceStreamId(shareId: string) {

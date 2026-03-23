@@ -1,8 +1,9 @@
 import { getDashboard } from "@/db/widgets";
-import { lookupPublishedDashboardSnapshot } from "@/lib/publish-dashboard";
+import { appendLiveDashboardState } from "@/lib/publish-dashboard";
+import { ensurePublishedTraceStream } from "@/lib/share-trace";
 import {
   deriveShareId,
-  getSnapshotStreamId,
+  getDashboardStreamId,
   getTraceStreamId,
 } from "@/lib/share";
 
@@ -20,26 +21,16 @@ export async function POST(
   try {
     const shareId = deriveShareId(id);
     const origin = new URL(request.url).origin;
-    const publishedSnapshot = await lookupPublishedDashboardSnapshot(shareId);
+    const liveState = await appendLiveDashboardState(id);
+    await ensurePublishedTraceStream(shareId);
 
     return Response.json({
       dashboardId: id,
       shareId,
       shareUrl: `${origin}/share/${shareId}`,
-      snapshotStreamId: getSnapshotStreamId(shareId),
+      dashboardStreamId: getDashboardStreamId(shareId),
       traceStreamId: getTraceStreamId(shareId),
-      publishedAt:
-        publishedSnapshot.status === "ready"
-          ? publishedSnapshot.snapshot.publishedAt
-          : null,
-      shareStatus:
-        publishedSnapshot.status === "ready"
-          ? "published"
-          : publishedSnapshot.status,
-      shareError:
-        publishedSnapshot.status === "backend_unavailable"
-          ? publishedSnapshot.message
-          : null,
+      updatedAt: liveState.state.updatedAt,
     });
   } catch (err) {
     return Response.json(

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, Copy, ExternalLink, Share2, Upload } from "lucide-react";
+import { Check, Copy, ExternalLink, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useWidgetStore } from "@/store/widget-store";
 import { flushSyncToServer } from "@/lib/sync-db";
@@ -10,28 +10,18 @@ interface ShareInfo {
   dashboardId: string;
   shareId: string;
   shareUrl: string;
-  snapshotStreamId: string;
+  dashboardStreamId: string;
   traceStreamId: string;
-  publishedAt: string | null;
-  shareStatus: "published" | "unpublished" | "backend_unavailable";
-  shareError: string | null;
+  updatedAt: string;
 }
 
-function formatShareStatus(shareInfo: ShareInfo) {
-  if (shareInfo.shareStatus === "backend_unavailable") {
-    return "Share backend unavailable";
-  }
-
-  if (!shareInfo.publishedAt) {
-    return "Not published yet";
-  }
-
-  const date = new Date(shareInfo.publishedAt);
+function formatLiveStatus(updatedAt: string) {
+  const date = new Date(updatedAt);
   if (Number.isNaN(date.getTime())) {
-    return "Not published yet";
+    return "Live sync ready";
   }
 
-  return `Published ${date.toLocaleString()}`;
+  return `Synced ${date.toLocaleString()}`;
 }
 
 export function ShareDashboardButton() {
@@ -46,7 +36,6 @@ export function ShareDashboardButton() {
   const [open, setOpen] = useState(false);
   const [shareInfo, setShareInfo] = useState<ShareInfo | null>(null);
   const [loading, setLoading] = useState(false);
-  const [publishing, setPublishing] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -78,6 +67,8 @@ export function ShareDashboardButton() {
     setError(null);
 
     try {
+      await flushSyncToServer();
+
       const response = await fetch(`/api/dashboards/${dashboardId}/share`, {
         method: "POST",
       });
@@ -103,14 +94,10 @@ export function ShareDashboardButton() {
     const nextOpen = !open;
     setOpen(nextOpen);
 
-    if (
-      nextOpen
-      && (!shareInfo || shareInfo.dashboardId !== activeDashboard.id)
-      && !loading
-    ) {
+    if (nextOpen && !loading) {
       await loadShareInfo(activeDashboard.id);
     }
-  }, [activeDashboard, loadShareInfo, loading, open, shareInfo]);
+  }, [activeDashboard, loadShareInfo, loading, open]);
 
   const handleCopy = useCallback(async () => {
     if (!shareInfo) {
@@ -130,34 +117,6 @@ export function ShareDashboardButton() {
     window.open(shareInfo.shareUrl, "_blank", "noopener,noreferrer");
   }, [shareInfo]);
 
-  const handlePublish = useCallback(async () => {
-    if (!activeDashboard) {
-      return;
-    }
-
-    setPublishing(true);
-    setError(null);
-
-    try {
-      await flushSyncToServer();
-
-      const response = await fetch(`/api/dashboards/${activeDashboard.id}/publish`, {
-        method: "POST",
-      });
-
-      const data = await response.json().catch(() => null);
-      if (!response.ok) {
-        throw new Error(data?.error ?? `Publish failed with status ${response.status}`);
-      }
-
-      setShareInfo(data as ShareInfo);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setPublishing(false);
-    }
-  }, [activeDashboard]);
-
   return (
     <div className="relative" ref={containerRef}>
       <Button
@@ -175,25 +134,25 @@ export function ShareDashboardButton() {
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
-                Shared Dashboard
+                Live Share
               </div>
               <div className="mt-1 truncate text-sm text-zinc-100">
                 {activeDashboard?.title ?? "Dashboard"}
               </div>
             </div>
             <div className="shrink-0 text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-              Read only
+              Live sync
             </div>
           </div>
 
-          <div className="mt-3 border border-zinc-700 bg-zinc-900/60 p-2">
+            <div className="mt-3 border border-zinc-700 bg-zinc-900/60 p-2">
             {loading ? (
-              <div className="text-xs text-zinc-500">Loading share link…</div>
+              <div className="text-xs text-zinc-500">Syncing live share…</div>
             ) : shareInfo ? (
               <>
                 <div className="break-all text-xs text-zinc-300">{shareInfo.shareUrl}</div>
                 <div className="mt-2 text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-                  {formatShareStatus(shareInfo)}
+                  {formatLiveStatus(shareInfo.updatedAt)}
                 </div>
               </>
             ) : (
@@ -206,12 +165,6 @@ export function ShareDashboardButton() {
           {error && (
             <div className="mt-3 border border-red-500/30 bg-red-500/10 px-2 py-1.5 text-xs text-red-200">
               {error}
-            </div>
-          )}
-
-          {!error && shareInfo?.shareStatus === "backend_unavailable" && shareInfo.shareError && (
-            <div className="mt-3 border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-100">
-              {shareInfo.shareError}
             </div>
           )}
 
@@ -237,16 +190,6 @@ export function ShareDashboardButton() {
               Open
             </Button>
           </div>
-
-          <Button
-            size="sm"
-            disabled={!activeDashboard || publishing}
-            onClick={() => { void handlePublish(); }}
-            className="mt-2 w-full justify-center border border-teal-500/40 bg-teal-500/10 text-teal-100 hover:bg-teal-500/20"
-          >
-            <Upload className="h-3.5 w-3.5" />
-            {publishing ? "Publishing…" : shareInfo?.shareStatus === "published" ? "Republish Snapshot" : "Publish Snapshot"}
-          </Button>
         </div>
       )}
     </div>
