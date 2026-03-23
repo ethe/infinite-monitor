@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { DEFAULT_RIVERRUN_BASE_URL } from "@/lib/riverrun";
+import { DEFAULT_DURABLE_STREAM_BASE_URL } from "@/lib/durable-stream";
 
 vi.mock("@/db/widgets", () => ({
   getDashboardByWidgetId: vi.fn(),
@@ -13,7 +13,7 @@ vi.mock("@/lib/shared-dashboard-state", () => ({
   materializePublishedWidgets: vi.fn(),
 }));
 
-const ORIGINAL_RIVERRUN_BASE_URL = process.env.RIVERRUN_BASE_URL;
+const ORIGINAL_DURABLE_STREAM_BASE_URL = process.env.DURABLE_STREAM_BASE_URL;
 const BOOTSTRAP_BOUNDARY = "rr-session-bootstrap";
 
 function buildBootstrapBody(parts: string[]) {
@@ -25,10 +25,10 @@ function buildBootstrapBody(parts: string[]) {
 afterEach(() => {
   vi.restoreAllMocks();
 
-  if (ORIGINAL_RIVERRUN_BASE_URL === undefined) {
-    delete process.env.RIVERRUN_BASE_URL;
+  if (ORIGINAL_DURABLE_STREAM_BASE_URL === undefined) {
+    delete process.env.DURABLE_STREAM_BASE_URL;
   } else {
-    process.env.RIVERRUN_BASE_URL = ORIGINAL_RIVERRUN_BASE_URL;
+    process.env.DURABLE_STREAM_BASE_URL = ORIGINAL_DURABLE_STREAM_BASE_URL;
   }
 });
 
@@ -64,9 +64,9 @@ describe("buildSessionStateContentHash", () => {
 });
 
 describe("bootstrapSharedSession", () => {
-  it("falls back to the default riverrun base url when env is not configured", async () => {
+  it("falls back to the default durable stream base url when env is not configured", async () => {
     const { bootstrapSharedSession } = await import("@/lib/session-stream");
-    delete process.env.RIVERRUN_BASE_URL;
+    delete process.env.DURABLE_STREAM_BASE_URL;
     const fetchMock = vi.fn().mockResolvedValue(new Response("", { status: 404 }));
     vi.stubGlobal("fetch", fetchMock);
 
@@ -75,13 +75,13 @@ describe("bootstrapSharedSession", () => {
     });
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe(
-      `${DEFAULT_RIVERRUN_BASE_URL}/ds/im-share/shr_test.session/bootstrap`,
+      `${DEFAULT_DURABLE_STREAM_BASE_URL}/ds/im-share/shr_test.session/bootstrap`,
     );
   });
 
   it("builds the latest shared session from snapshot plus retained updates", async () => {
     const { bootstrapSharedSession } = await import("@/lib/session-stream");
-    process.env.RIVERRUN_BASE_URL = "https://riverrun.test";
+    process.env.DURABLE_STREAM_BASE_URL = "https://durable-stream.test";
 
     const snapshot = {
       version: "v1" as const,

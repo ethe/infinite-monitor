@@ -1,26 +1,26 @@
-export interface RiverrunAppendResult {
+export interface DurableStreamAppendResult {
   body: string;
   nextOffset: string;
 }
 
-export interface RiverrunHeadResult {
+export interface DurableStreamHeadResult {
   exists: boolean;
   nextOffset: string | null;
 }
 
-export interface RiverrunBootstrapPart {
+export interface DurableStreamBootstrapPart {
   contentType: string | null;
   body: string;
 }
 
-export interface RiverrunBootstrapResult {
+export interface DurableStreamBootstrapResult {
   snapshotOffset: string | null;
   nextOffset: string | null;
   upToDate: boolean;
-  parts: RiverrunBootstrapPart[];
+  parts: DurableStreamBootstrapPart[];
 }
 
-export const DEFAULT_RIVERRUN_BASE_URL = "https://stream.tonbo.dev";
+export const DEFAULT_DURABLE_STREAM_BASE_URL = "https://stream.tonbo.dev";
 
 function trimTrailingSlash(value: string) {
   return value.replace(/\/+$/, "");
@@ -91,11 +91,11 @@ function parseMultipartHeaders(headerBlock: string) {
   return headers;
 }
 
-function parseMultipartMixed(body: string, boundary: string): RiverrunBootstrapPart[] {
+function parseMultipartMixed(body: string, boundary: string): DurableStreamBootstrapPart[] {
   const normalized = body.replace(/\r\n/g, "\n");
   const marker = `--${boundary}`;
   const segments = normalized.split(marker);
-  const parts: RiverrunBootstrapPart[] = [];
+  const parts: DurableStreamBootstrapPart[] = [];
 
   for (const segment of segments) {
     const trimmedStart = segment.replace(/^\n+/, "");
@@ -125,7 +125,7 @@ function parseMultipartMixed(body: string, boundary: string): RiverrunBootstrapP
   return parts;
 }
 
-export function createRiverrunClient(baseUrl: string) {
+export function createDurableStreamClient(baseUrl: string) {
   const normalizedBaseUrl = trimTrailingSlash(baseUrl);
 
   async function request(
@@ -160,7 +160,7 @@ export function createRiverrunClient(baseUrl: string) {
       await assertResponseOk(response, [409]);
     },
 
-    async appendJson<T>(bucket: string, streamId: string, payload: T): Promise<RiverrunAppendResult> {
+    async appendJson<T>(bucket: string, streamId: string, payload: T): Promise<DurableStreamAppendResult> {
       const body = JSON.stringify(payload);
       const response = await request(streamPath(bucket, streamId), {
         method: "POST",
@@ -174,7 +174,7 @@ export function createRiverrunClient(baseUrl: string) {
 
       const nextOffset = getNextOffset(response);
       if (!nextOffset) {
-        throw new Error("Riverrun append response did not include Stream-Next-Offset");
+        throw new Error("Durable stream append response did not include Stream-Next-Offset");
       }
 
       return { body, nextOffset };
@@ -217,7 +217,7 @@ export function createRiverrunClient(baseUrl: string) {
       return JSON.parse(text) as T;
     },
 
-    async bootstrap(bucket: string, streamId: string): Promise<RiverrunBootstrapResult | null> {
+    async bootstrap(bucket: string, streamId: string): Promise<DurableStreamBootstrapResult | null> {
       const response = await request(`${streamPath(bucket, streamId)}/bootstrap`, {
         method: "GET",
         headers: {
@@ -233,7 +233,7 @@ export function createRiverrunClient(baseUrl: string) {
       const contentType = response.headers.get("Content-Type") ?? "";
       const boundary = getMultipartBoundary(contentType);
       if (!boundary) {
-        throw new Error("Riverrun bootstrap response did not include a multipart boundary");
+        throw new Error("Durable stream bootstrap response did not include a multipart boundary");
       }
 
       const body = await response.text();
@@ -245,7 +245,7 @@ export function createRiverrunClient(baseUrl: string) {
       };
     },
 
-    async head(bucket: string, streamId: string): Promise<RiverrunHeadResult> {
+    async head(bucket: string, streamId: string): Promise<DurableStreamHeadResult> {
       const response = await request(streamPath(bucket, streamId), {
         method: "HEAD",
       });
@@ -286,10 +286,10 @@ export function createRiverrunClient(baseUrl: string) {
   };
 }
 
-export function getRiverrunBaseUrl() {
-  return process.env.RIVERRUN_BASE_URL?.trim() || DEFAULT_RIVERRUN_BASE_URL;
+export function getDurableStreamBaseUrl() {
+  return process.env.DURABLE_STREAM_BASE_URL?.trim() || DEFAULT_DURABLE_STREAM_BASE_URL;
 }
 
-export function getRiverrunClient() {
-  return createRiverrunClient(getRiverrunBaseUrl());
+export function getDurableStreamClient() {
+  return createDurableStreamClient(getDurableStreamBaseUrl());
 }

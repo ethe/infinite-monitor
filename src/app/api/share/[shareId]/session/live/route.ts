@@ -1,4 +1,4 @@
-import { getRiverrunClient } from "@/lib/riverrun";
+import { getDurableStreamClient } from "@/lib/durable-stream";
 import { getSessionStreamId, SHARE_BUCKET } from "@/lib/share";
 
 export async function GET(
@@ -6,13 +6,13 @@ export async function GET(
   { params }: { params: Promise<{ shareId: string }> },
 ) {
   const { shareId } = await params;
-  const riverrun = getRiverrunClient();
+  const durableStream = getDurableStreamClient();
 
   const url = new URL(request.url);
   const offset = url.searchParams.get("offset") ?? "now";
 
   try {
-    const upstream = await riverrun.tailSse(
+    const upstream = await durableStream.tailSse(
       SHARE_BUCKET,
       getSessionStreamId(shareId),
       offset,

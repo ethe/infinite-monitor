@@ -7,8 +7,8 @@ import {
   materializePublishedWidgets,
 } from "@/lib/shared-dashboard-state";
 import {
-  getRiverrunClient,
-} from "@/lib/riverrun";
+  getDurableStreamClient,
+} from "@/lib/durable-stream";
 import {
   deriveShareId,
   getPublishedWidgetId,
@@ -184,8 +184,8 @@ async function ensureSessionStream(shareId: string) {
   }
 
   const ensureTask = (async () => {
-    const riverrun = getRiverrunClient();
-    await riverrun.createStream(SHARE_BUCKET, getSessionStreamId(shareId));
+    const durableStream = getDurableStreamClient();
+    await durableStream.createStream(SHARE_BUCKET, getSessionStreamId(shareId));
   })();
 
   sessionStreamEnsures.set(shareId, ensureTask);
@@ -295,8 +295,8 @@ function parseSharedSessionBootstrap(
 async function loadSharedSessionFromBootstrap(
   shareId: string,
 ): Promise<SharedSessionBootstrapData | null> {
-  const riverrun = getRiverrunClient();
-  const bootstrap = await riverrun.bootstrap(
+  const durableStream = getDurableStreamClient();
+  const bootstrap = await durableStream.bootstrap(
     SHARE_BUCKET,
     getSessionStreamId(shareId),
   );
@@ -346,8 +346,8 @@ async function compactSharedSessionSnapshotLocked(shareId: string) {
     return;
   }
 
-  const riverrun = getRiverrunClient();
-  await riverrun.publishSnapshot(
+  const durableStream = getDurableStreamClient();
+  await durableStream.publishSnapshot(
     SHARE_BUCKET,
     getSessionStreamId(shareId),
     session.nextOffset,
@@ -376,7 +376,7 @@ async function appendPendingSessionWritesLocked(
 
   await ensureSessionStream(shareId);
 
-  const riverrun = getRiverrunClient();
+  const durableStream = getDurableStreamClient();
   const streamId = getSessionStreamId(shareId);
   let nextOffset: string | null = null;
   let appendedCount = 0;
@@ -392,7 +392,7 @@ async function appendPendingSessionWritesLocked(
           }
         }
 
-        const appendResult = await riverrun.appendJson(
+        const appendResult = await durableStream.appendJson(
           SHARE_BUCKET,
           streamId,
           write.event,
@@ -420,7 +420,7 @@ async function appendPendingSessionWritesLocked(
           continue;
         }
 
-        const appendResult = await riverrun.appendJson(
+        const appendResult = await durableStream.appendJson(
           SHARE_BUCKET,
           streamId,
           buildSharedSessionPresenceEvent(
@@ -437,7 +437,7 @@ async function appendPendingSessionWritesLocked(
       }
 
       case "trace.event": {
-        const appendResult = await riverrun.appendJson(
+        const appendResult = await durableStream.appendJson(
           SHARE_BUCKET,
           streamId,
           write.event,
@@ -574,10 +574,10 @@ export function scheduleSharedDashboardAppendForWidget(
 export async function bootstrapSharedSession(
   shareId: string,
 ): Promise<SharedSessionBootstrapResult> {
-  const riverrun = getRiverrunClient();
+  const durableStream = getDurableStreamClient();
 
   try {
-    const bootstrap = await riverrun.bootstrap(
+    const bootstrap = await durableStream.bootstrap(
       SHARE_BUCKET,
       getSessionStreamId(shareId),
     );
