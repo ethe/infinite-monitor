@@ -102,6 +102,13 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
+function corsJson(body: unknown, init: { status: number }) {
+  return Response.json(body, {
+    status: init.status,
+    headers: { "Access-Control-Allow-Origin": "*" },
+  });
+}
+
 function validateTarget(
   request: Request,
 ): { target: string } | Response {
@@ -109,18 +116,18 @@ function validateTarget(
   const target = searchParams.get("url");
 
   if (!target) {
-    return Response.json({ error: "url parameter required" }, { status: 400 });
+    return corsJson({ error: "url parameter required" }, { status: 400 });
   }
 
   let parsed: URL;
   try {
     parsed = new URL(target);
   } catch {
-    return Response.json({ error: "invalid url" }, { status: 400 });
+    return corsJson({ error: "invalid url" }, { status: 400 });
   }
 
   if (!["http:", "https:"].includes(parsed.protocol)) {
-    return Response.json({ error: "only http/https allowed" }, { status: 400 });
+    return corsJson({ error: "only http/https allowed" }, { status: 400 });
   }
 
   return { target };
@@ -130,7 +137,7 @@ async function scanTarget(target: string): Promise<Response | null> {
   try {
     const scan = await scanUrl(target);
     if (!scan.safe) {
-      return Response.json(
+      return corsJson(
         {
           error: "blocked_by_security",
           verdict: scan.verdict,
@@ -177,9 +184,9 @@ export async function GET(request: Request) {
       return buildProxyResponse(staleCacheHit, "STALE");
     }
 
-    return Response.json(
+    return corsJson(
       { error: "upstream fetch failed", detail: String(err) },
-      { status: 502 }
+      { status: 502 },
     );
   }
 }
@@ -214,7 +221,7 @@ export async function POST(request: Request) {
 
     return buildProxyResponse({ body, contentType, status: upstream.status }, "MISS");
   } catch (err) {
-    return Response.json(
+    return corsJson(
       { error: "upstream fetch failed", detail: String(err) },
       { status: 502 },
     );
