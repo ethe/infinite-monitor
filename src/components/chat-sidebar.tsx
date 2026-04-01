@@ -492,13 +492,15 @@ function useModelSelector({ hasOpenRouterStarter }: { hasOpenRouterStarter: bool
 
   const provider = allProviders.find((p) => p.id === providerId);
   const model = provider?.models.find((m) => m.id === modelId);
+  const isOpenRouterStarterModel = providerId === OPENROUTER_PROVIDER_ID
+    && OPENROUTER_STARTER_MODEL_IDS.has(modelId);
 
   const hasSavedKey = isCustomProvider(providerId)
     ? !!customApis.find((c) => `${CUSTOM_PROVIDER_PREFIX}${c.id}` === providerId)?.apiKey
     : !!apiKeys[providerId];
-  const hasStarterAccess = providerId === OPENROUTER_PROVIDER_ID && hasOpenRouterStarter;
+  const hasStarterAccess = isOpenRouterStarterModel && hasOpenRouterStarter;
   const hasAccess = hasSavedKey || hasStarterAccess;
-  const showOpenRouterStarterNotice = providerId === OPENROUTER_PROVIDER_ID
+  const showOpenRouterStarterNotice = isOpenRouterStarterModel
     && hasOpenRouterStarter
     && !hasSavedKey
     && !showKeyInput;
@@ -506,10 +508,12 @@ function useModelSelector({ hasOpenRouterStarter }: { hasOpenRouterStarter: bool
   const handleSelect = (newModel: string) => {
     setModel(newModel);
     setOpen(false);
-    const { providerId: pid } = parseModelString(newModel);
+    const { providerId: pid, modelId: nextModelId } = parseModelString(newModel);
+    const isStarterOpenRouterModel = pid === OPENROUTER_PROVIDER_ID
+      && OPENROUTER_STARTER_MODEL_IDS.has(nextModelId);
     if (isCustomProvider(pid)) {
       setShowKeyInput(false);
-    } else if (pid === OPENROUTER_PROVIDER_ID && hasOpenRouterStarter && !apiKeys[pid]) {
+    } else if (isStarterOpenRouterModel && hasOpenRouterStarter && !apiKeys[pid]) {
       setShowKeyInput(false);
     } else if (!apiKeys[pid]) {
       setShowKeyInput(true);

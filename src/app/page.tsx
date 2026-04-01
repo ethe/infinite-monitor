@@ -6,6 +6,8 @@ import { ShareDashboardButton } from "@/components/share-dashboard-button";
 import { AppHeader } from "@/components/app-header";
 import { hasOpenRouterStarter } from "@/lib/openrouter";
 
+export const dynamic = "force-dynamic";
+
 export default function Home() {
   return (
     <div className="flex h-screen overflow-hidden bg-zinc-900">
